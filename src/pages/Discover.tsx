@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { SEOHead } from '@/components/SEOHead';
 import { NpsUpload } from '@/components/NpsUpload';
+import type { NpsAnalysisResult } from '@/lib/npsAnalysis';
+
+const NPS_RESULT_KEY = 'nps:analysisResult';
 
 const Discover = () => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'results'>('upload');
+  const navigate = useNavigate();
 
-  const handleAnalysisStart = () => {
-    setActiveTab('results');
+  const handleAnalysisComplete = (result: NpsAnalysisResult) => {
+    try {
+      sessionStorage.setItem(NPS_RESULT_KEY, JSON.stringify(result));
+    } catch {
+      // ignore
+    }
+    navigate('/results', { state: { result } });
   };
 
   return (
@@ -43,7 +52,7 @@ const Discover = () => {
 
       {/* Upload / Results Section */}
       <section className="px-4 md:px-8 pb-24">
-        <NpsUpload activeTab={activeTab} onActiveTabChange={setActiveTab} onAnalysisStart={handleAnalysisStart} />
+        <NpsUpload onAnalysisComplete={handleAnalysisComplete} />
       </section>
     </div>
   );

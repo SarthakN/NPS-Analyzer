@@ -8,7 +8,6 @@ import { EventHeader } from './EventHeader';
 import { EventDescription } from './EventDescription';
 import { EventLocation } from './EventLocation';
 import { EventRegistration } from './EventRegistration';
-import { AuthSheet } from './AuthSheet';
 import { SEOHead } from './SEOHead';
 
 interface Event {
@@ -28,7 +27,6 @@ export const EventDetailPage: React.FC = () => {
   const [isRegistered, setIsRegistered] = useState(false);
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [notFound, setNotFound] = useState(false);
   
   useEffect(() => {
@@ -151,7 +149,6 @@ export const EventDetailPage: React.FC = () => {
               eventId={event.id}
               onRegister={checkRegistration} 
               isRegistered={isRegistered}
-              onAuthRequired={() => setIsAuthOpen(true)}
               targetDate={new Date(event.target_date)}
               className="opacity-0 animate-fade-in [animation-delay:400ms]" 
             />
@@ -159,6 +156,5 @@ export const EventDetailPage: React.FC = () => {
           </div>
         </aside>
       </main>
-      <AuthSheet isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </>;
 };

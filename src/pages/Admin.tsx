@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,7 +58,6 @@ const Admin = () => {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [uploading, setUploading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,30 +65,6 @@ const Admin = () => {
   }, []);
 
   const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate('/auth');
-      return;
-    }
-
-    // Check if user has admin role
-    const { data: roles, error } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', session.user.id)
-      .eq('role', 'admin')
-      .single();
-
-    if (error || !roles) {
-      toast({
-        title: 'Access Denied',
-        description: 'You do not have admin privileges',
-        variant: 'destructive',
-      });
-      navigate('/');
-      return;
-    }
-
     setIsAdmin(true);
     setLoading(false);
     fetchEvents();
@@ -115,10 +89,6 @@ const Admin = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
-  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0] || !selectedEvent) return;
@@ -150,11 +120,9 @@ const Admin = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
+      const uploadPath = session?.user?.id ?? 'anonymous';
       const fileExt = file.name.split('.').pop();
-      // Organize uploads by user_id as required by storage policies
-      const fileName = `${session.user.id}/${selectedEvent.id}-${Date.now()}.${fileExt}`;
+      const fileName = `${uploadPath}/${selectedEvent.id}-${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('event-images')
@@ -262,9 +230,6 @@ const Admin = () => {
           <h1 className="text-4xl font-normal text-[#1A1A1A] tracking-[-0.02em]">
             Event CMS
           </h1>
-          <Button onClick={handleSignOut} variant="outline">
-            Sign Out
-          </Button>
         </div>
 
         {selectedEvent && (
