@@ -187,12 +187,6 @@ const Discover = () => {
         <Navbar />
       </div>
       
-      {/* Decorative rotating badge - fixed to viewport */}
-      <RotatingBadge
-      text="BROWSE"
-      onClick={scrollToEvents}
-      showIcon={true}
-      icon={<img src={arrowDown} alt="Arrow down" className="w-6 h-6 md:w-7 md:h-7 lg:w-12 lg:h-12" />} />
     
       
       {/* Hero Section */}
