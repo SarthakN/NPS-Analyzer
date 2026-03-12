@@ -3,8 +3,6 @@ import { Navbar } from '@/components/Navbar';
 import { SEOHead } from '@/components/SEOHead';
 import { NpsUpload } from '@/components/NpsUpload';
 
-
-};
 const Discover = () => {
   return (
     <div className="min-h-screen bg-background">
@@ -44,4 +42,5 @@ const Discover = () => {
     </div>
   );
 };
+
 export default Discover;
