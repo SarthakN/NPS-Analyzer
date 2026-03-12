@@ -92,7 +92,7 @@ export const Navbar: React.FC = () => {
             className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group">
             
             <span className="relative z-10">SIGN IN</span>
-            <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
+            
           </button>
           }
       </div>
