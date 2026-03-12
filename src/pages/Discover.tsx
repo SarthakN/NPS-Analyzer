@@ -3,29 +3,6 @@ import { Navbar } from '@/components/Navbar';
 import { SEOHead } from '@/components/SEOHead';
 import { NpsUpload } from '@/components/NpsUpload';
 
-interface Event {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  background_image_url: string;
-  target_date: string;
-  address: string;
-}
-
-const EventCard = ({
-  event
-
-
-}: {event: Event;}) => {
-  const navigate = useNavigate();
-
-  const isEventLive = () => {
-    const now = new Date().getTime();
-    const target = new Date(event.target_date).getTime();
-    const oneHour = 1000 * 60 * 60;
-    return now >= target && now <= target + oneHour;
-  };
 
   const eventLive = isEventLive();
 
