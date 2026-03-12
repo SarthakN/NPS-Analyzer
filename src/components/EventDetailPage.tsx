@@ -10,7 +10,7 @@ import { EventLocation } from './EventLocation';
 import { EventRegistration } from './EventRegistration';
 import { AuthSheet } from './AuthSheet';
 import { SEOHead } from './SEOHead';
-import { RotatingBadge } from './RotatingBadge';
+
 interface Event {
   id: string;
   title: string;
