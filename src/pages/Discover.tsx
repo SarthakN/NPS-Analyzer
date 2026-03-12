@@ -1,17 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Navbar } from '@/components/Navbar';
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
-import arrowDown from '@/assets/arrow-down.png';
 import { SEOHead } from '@/components/SEOHead';
-import { EventsCarousel } from '@/components/EventsCarousel';
-import { RotatingBadge } from '@/components/RotatingBadge';
+import { NpsUpload } from '@/components/NpsUpload';
 
 interface Event {
   id: string;
