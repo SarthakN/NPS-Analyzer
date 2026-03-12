@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
-import { AuthSheet } from '@/components/AuthSheet';
 import { SEOHead } from '@/components/SEOHead';
 import { z } from 'zod';
 
@@ -33,29 +32,18 @@ const CreateEvent = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  
   const locationInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { onPlaceSelected } = useGooglePlacesAutocomplete(locationInputRef);
 
   useEffect(() => {
-    // Check auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
-      if (!session?.user) {
-        setShowAuthModal(true);
-      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
-      if (session?.user) {
-        setShowAuthModal(false);
-      } else {
-        setShowAuthModal(true);
-      }
     });
 
     return () => subscription.unsubscribe();
@@ -94,12 +82,6 @@ const CreateEvent = () => {
   };
 
   const handleSubmit = async () => {
-    // Check if user is authenticated first
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-
     // Validate date fields first
     if (!startDate) {
       toast.error('Please select a start date');
@@ -172,27 +154,35 @@ const CreateEvent = () => {
       const timeStr = `${startTime} - ${endTime}`;
 
       // Get creator name from profile or fallback to email
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('user_id', user.id)
-        .single();
+      let profile: { display_name: string | null } | null = null;
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', user.id)
+          .single();
+        profile = data;
+      }
 
-      const creatorName = profile?.display_name || user.email?.split('@')[0] || 'Anonymous';
+      const creatorName = user ? (profile?.display_name || user.email?.split('@')[0] || 'Anonymous') : 'Anonymous';
 
       // Insert event into database
+      const insertData: Record<string, unknown> = {
+        title: eventName,
+        description: description,
+        date: dateStr,
+        time: timeStr,
+        address: location,
+        background_image_url: publicUrl,
+        target_date: targetDate.toISOString(),
+        creator: creatorName,
+      };
+      if (user) {
+        insertData.created_by = user.id;
+      }
       const { error: insertError } = await supabase
         .from('events')
-        .insert({
-          title: eventName,
-          description: description,
-          date: dateStr,
-          time: timeStr,
-          address: location,
-          background_image_url: publicUrl,
-          target_date: targetDate.toISOString(),
-          creator: creatorName,
-        });
+        .insert(insertData);
 
       if (insertError) throw insertError;
 
@@ -212,14 +202,12 @@ const CreateEvent = () => {
         title="Create Event"
         description="Create and publish a new event for your community to discover and join"
       />
-      <AuthSheet isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
       
       <div className="min-h-screen bg-white">
         <Navbar />
         
-        {user ? (
-          <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-8 md:pb-16 px-4 md:px-8">
-            <div className="grid lg:grid-cols-2 gap-8 md:gap-16 items-start">
+        <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-8 md:pb-16 px-4 md:px-8">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-16 items-start">
               {/* Left: Image Upload */}
               <div className="flex flex-col gap-3 md:gap-4">
             <label className="w-full aspect-[4/3] border border-black bg-[#D9D9D9] flex items-center justify-center cursor-pointer hover:bg-[#CECECE] transition-colors">
@@ -394,8 +382,7 @@ const CreateEvent = () => {
                 </div>
               </div>
             </div>
-          </div>
-        ) : null}
+        </div>
       </div>
     </>
   );

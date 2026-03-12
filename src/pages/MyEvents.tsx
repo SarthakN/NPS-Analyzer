@@ -78,30 +78,19 @@ const MyEvents = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate('/');
-        return;
-      }
-      setUser(session.user);
+      setUser(session?.user ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
-        navigate('/');
-        return;
-      }
-      setUser(session.user);
+      setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      fetchMyEvents();
-    }
+    fetchMyEvents();
   }, [user]);
 
   useEffect(() => {
@@ -125,41 +114,45 @@ const MyEvents = () => {
   }, [activeTab, createdEvents.length, registeredEvents.length]);
 
   const fetchMyEvents = async () => {
-    if (!user) return;
-    
     setLoading(true);
     try {
-      // Fetch created events
-      const { data: created, error: createdError } = await supabase
-        .from('events')
-        .select('id, title, date, time, background_image_url')
-        .eq('created_by', user.id)
-        .order('target_date', { ascending: true });
+      let created: Event[] = [];
+      let registeredEventsData: Event[] = [];
 
-      if (createdError) throw createdError;
-      setCreatedEvents(created || []);
+      if (user) {
+        // Fetch created events
+        const { data: createdData, error: createdError } = await supabase
+          .from('events')
+          .select('id, title, date, time, background_image_url')
+          .eq('created_by', user.id)
+          .order('target_date', { ascending: true });
 
-      // Fetch registered events
-      const { data: registrations, error: regError } = await supabase
-        .from('event_registrations')
-        .select(`
-          event_id,
-          events (
-            id,
-            title,
-            date,
-            time,
-            background_image_url
-          )
-        `)
-        .eq('user_id', user.id);
+        if (createdError) throw createdError;
+        created = createdData || [];
 
-      if (regError) throw regError;
-      
-      const registeredEventsData = registrations
-        ?.map(r => r.events)
-        .filter(Boolean) as Event[] || [];
-      
+        // Fetch registered events
+        const { data: registrations, error: regError } = await supabase
+          .from('event_registrations')
+          .select(`
+            event_id,
+            events (
+              id,
+              title,
+              date,
+              time,
+              background_image_url
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (regError) throw regError;
+        
+        registeredEventsData = registrations
+          ?.map(r => r.events)
+          .filter(Boolean) as Event[] || [];
+      }
+
+      setCreatedEvents(created);
       setRegisteredEvents(registeredEventsData);
     } catch (error) {
       if (import.meta.env.DEV) console.error('Error fetching events:', error);

@@ -8,7 +8,6 @@ interface EventRegistrationProps {
   onRegister: () => void;
   isRegistered: boolean;
   className?: string;
-  onAuthRequired?: () => void;
   targetDate?: Date;
 }
 
@@ -17,7 +16,6 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
   onRegister, 
   isRegistered: initialIsRegistered,
   className = "",
-  onAuthRequired,
   targetDate
 }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -80,15 +78,11 @@ export const EventRegistration: React.FC<EventRegistrationProps> = ({
     }
 
     if (!user) {
-      if (onAuthRequired) {
-        onAuthRequired();
-      } else {
-        toast({
-          title: 'Sign in required',
-          description: 'Please sign in to register for events',
-          variant: 'destructive'
-        });
-      }
+      toast({
+        title: 'Unable to register',
+        description: 'Please try again in a moment',
+        variant: 'destructive'
+      });
       return;
     }
 

@@ -9,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@supabase/supabase-js';
-import { AuthSheet } from '@/components/AuthSheet';
 import { SEOHead } from '@/components/SEOHead';
 import { Trash2 } from 'lucide-react';
 import { z } from 'zod';
@@ -35,7 +34,6 @@ const EditEvent = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [registrants, setRegistrants] = useState<Array<{ display_name: string; registered_at: string }>>([]);
   
@@ -47,31 +45,22 @@ const EditEvent = () => {
   const { onPlaceSelected } = useGooglePlacesAutocomplete(locationInputRef);
 
   useEffect(() => {
-    // Check auth state
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
-      if (!session?.user) {
-        setShowAuthModal(true);
-      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
-      if (session?.user) {
-        setShowAuthModal(false);
-      } else {
-        setShowAuthModal(true);
-      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (user && id) {
+    if (id) {
       fetchEvent();
     }
-  }, [user, id]);
+  }, [id]);
 
   useEffect(() => {
     onPlaceSelected((place) => {
@@ -103,8 +92,8 @@ const EditEvent = () => {
         return;
       }
 
-      // Check if user is the creator
-      if (data.created_by !== user?.id) {
+      // Check if user is the creator (allow when created_by is null or matches)
+      if (data.created_by && user && data.created_by !== user.id) {
         toast.error('You do not have permission to edit this event');
         navigate('/my-events');
         return;
@@ -190,11 +179,6 @@ const EditEvent = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
-
     // Validate date fields first
     if (!startDate) {
       toast.error('Please select a start date');
@@ -268,13 +252,15 @@ const EditEvent = () => {
       const timeStr = `${startTime} - ${endTime}`;
 
       // Get creator name from profile or fallback to email
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('display_name')
-        .eq('user_id', user.id)
-        .single();
-
-      const creatorName = profile?.display_name || user.email?.split('@')[0] || 'Anonymous';
+      let creatorName = 'Anonymous';
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('display_name')
+          .eq('user_id', user.id)
+          .single();
+        creatorName = profile?.display_name || user.email?.split('@')[0] || 'Anonymous';
+      }
 
       // Update event in database
       const { error: updateError } = await supabase
@@ -341,14 +327,11 @@ const EditEvent = () => {
         title="Edit Event"
         description="Update your event details and settings"
       />
-      <AuthSheet isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
-      
       <div className="min-h-screen bg-white">
         <Navbar />
         
-        {user ? (
-          <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-8 md:pb-16 px-4 md:px-8">
-            <div className="grid lg:grid-cols-2 gap-8 md:gap-16 items-start">
+        <div className="max-w-7xl mx-auto pt-24 md:pt-32 pb-8 md:pb-16 px-4 md:px-8">
+          <div className="grid lg:grid-cols-2 gap-8 md:gap-16 items-start">
               {/* Left: Image Upload */}
               <div className="flex flex-col gap-3 md:gap-4">
             <label className="w-full aspect-[4/3] border border-black bg-[#D9D9D9] flex items-center justify-center cursor-pointer hover:bg-[#CECECE] transition-colors">
@@ -559,7 +542,6 @@ const EditEvent = () => {
               </div>
             </div>
           </div>
-        ) : null}
       </div>
     </>
   );
