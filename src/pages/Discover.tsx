@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Navbar } from '@/components/Navbar';
 import { SEOHead } from '@/components/SEOHead';
 import { NpsUpload } from '@/components/NpsUpload';
 
 const Discover = () => {
+  const [activeTab, setActiveTab] = useState<'upload' | 'results'>('upload');
+
+  const handleAnalysisStart = () => {
+    setActiveTab('results');
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <SEOHead
@@ -35,9 +41,9 @@ const Discover = () => {
         </div>
       </section>
 
-      {/* Upload Section */}
+      {/* Upload / Results Section */}
       <section className="px-4 md:px-8 pb-24">
-        <NpsUpload />
+        <NpsUpload activeTab={activeTab} onActiveTabChange={setActiveTab} onAnalysisStart={handleAnalysisStart} />
       </section>
     </div>
   );
