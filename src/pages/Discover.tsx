@@ -209,8 +209,8 @@ const Discover = () => {
             </div>
           </h1>
           <p className="text-sm md:text-base lg:text-[18px] text-black max-w-2xl mx-auto animate-fade-in" style={{ animationDelay: '0.7s', animationFillMode: 'both' }}>
-
-        </p>
+            Turn raw NPS feedback into deep insights that reveal what customers truly think
+          </p>
         </div>
       </section>
 
