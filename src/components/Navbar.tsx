@@ -34,7 +34,7 @@ export const Navbar: React.FC = () => {
 
   return createPortal(
     <>
-      <nav className="fixed top-8 left-4 md:left-8 z-[2000] flex items-center gap-0" >
+      <nav className="fixed top-8 left-4 md:left-8 z-[2000] flex items-center gap-0">
       {/* Logo */}
       <div className="bg-black text-white h-[34px] w-[34px] border border-black flex items-center justify-center">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14" className="w-4 h-4">
@@ -46,81 +46,81 @@ export const Navbar: React.FC = () => {
 
       {/* Desktop Navigation */}
       <div className="hidden md:flex items-center">
-        <Link 
-          to="/" 
-          className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border border-black leading-none group"
-        >
-          <span className="relative z-10">DISCOVER</span>
+        <Link
+            to="/"
+            className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border border-black leading-none group">
+            
+          <span className="relative z-10">RESULTS</span>
           <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
         </Link>
-        <button 
-          onClick={() => {
-            if (user) {
-              navigate('/create-event');
-            } else {
-              setPendingRoute('/create-event');
-              setIsAuthOpen(true);
-            }
-          }}
-          className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group"
-        >
-          <span className="relative z-10">CREATE EVENT</span>
+        <button
+            onClick={() => {
+              if (user) {
+                navigate('/create-event');
+              } else {
+                setPendingRoute('/create-event');
+                setIsAuthOpen(true);
+              }
+            }}
+            className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group">
+            
+          <span className="relative z-10">CONFIGURE</span>
           <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
         </button>
-        {user ? (
+        {user ?
           <>
-            <Link 
-              to="/my-events" 
-              className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group"
-            >
+            <Link
+              to="/my-events"
+              className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group">
+              
               <span className="relative z-10">MY EVENTS</span>
               <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
             </Link>
-            <button 
+            <button
               onClick={async () => {
                 await supabase.auth.signOut();
               }}
-              className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group"
-            >
+              className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group">
+              
               <span className="relative z-10">SIGN OUT</span>
               <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
             </button>
-          </>
-        ) : (
-          <button 
+          </> :
+
+          <button
             onClick={() => setIsAuthOpen(true)}
-            className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group"
-          >
+            className="relative overflow-hidden bg-white text-black h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border-l-0 border border-black leading-none group">
+            
             <span className="relative z-10">SIGN IN</span>
             <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
           </button>
-        )}
+          }
       </div>
 
       {/* Mobile Navigation - Full Screen */}
-      {isMobileMenuOpen && (
+      {isMobileMenuOpen &&
         <div className="md:hidden fixed inset-0 z-[3000] flex flex-col animate-in slide-in-from-top duration-300">
           {/* Close header */}
           <div className="bg-[#1A1A1A] flex items-center justify-center py-16 animate-in fade-in duration-500">
             <button
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-white text-[11px] font-medium uppercase tracking-wider"
-            >
+              className="text-white text-[11px] font-medium uppercase tracking-wider">
+              
               CLOSE
             </button>
           </div>
           
           {/* Menu items */}
           <div className="flex-1 flex flex-col bg-white">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               onClick={() => setIsMobileMenuOpen(false)}
               className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase border-b border-black tracking-[-0.34px] animate-fade-in"
-              style={{ animationDelay: '0.1s', animationFillMode: 'both' }}
-            >
+              style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+              
               DISCOVER
             </Link>
-            <button 
+            <button
               onClick={() => {
                 if (user) {
                   navigate('/create-event');
@@ -131,58 +131,58 @@ export const Navbar: React.FC = () => {
                 setIsMobileMenuOpen(false);
               }}
               className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase border-b border-black tracking-[-0.34px] animate-fade-in"
-              style={{ animationDelay: '0.2s', animationFillMode: 'both' }}
-            >
+              style={{ animationDelay: '0.2s', animationFillMode: 'both' }}>
+              
               CREATE EVENT
             </button>
-            {user ? (
-              <>
-                <Link 
-                  to="/my-events" 
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase border-b border-black tracking-[-0.34px] animate-fade-in"
-                  style={{ animationDelay: '0.3s', animationFillMode: 'both' }}
-                >
+            {user ?
+            <>
+                <Link
+                to="/my-events"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase border-b border-black tracking-[-0.34px] animate-fade-in"
+                style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+                
                   MY EVENTS
                 </Link>
-                <button 
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase tracking-[-0.34px] animate-fade-in"
-                  style={{ animationDelay: '0.4s', animationFillMode: 'both' }}
-                >
-                  SIGN OUT
-                </button>
-              </>
-            ) : (
-              <button 
-                onClick={() => {
-                  setIsAuthOpen(true);
+                <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
                   setIsMobileMenuOpen(false);
                 }}
                 className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase tracking-[-0.34px] animate-fade-in"
-                style={{ animationDelay: '0.3s', animationFillMode: 'both' }}
-              >
+                style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+                
+                  SIGN OUT
+                </button>
+              </> :
+
+            <button
+              onClick={() => {
+                setIsAuthOpen(true);
+                setIsMobileMenuOpen(false);
+              }}
+              className="flex-1 flex items-center justify-center text-[#1A1A1A] text-[17px] font-medium uppercase tracking-[-0.34px] animate-fade-in"
+              style={{ animationDelay: '0.3s', animationFillMode: 'both' }}>
+              
                 SIGN IN
               </button>
-            )}
+            }
           </div>
         </div>
-      )}
+        }
       
       {/* Menu Button - Mobile Only */}
-      <button 
-        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="md:hidden relative overflow-hidden bg-white text-black h-[34px] px-3 border border-l-0 border-black flex items-center justify-center text-[11px] font-medium uppercase leading-none group"
-      >
+      <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="md:hidden relative overflow-hidden bg-white text-black h-[34px] px-3 border border-l-0 border-black flex items-center justify-center text-[11px] font-medium uppercase leading-none group">
+          
         <span className="relative z-10">MENU</span>
         <span className="absolute inset-0 bg-[#FA76FF] translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out"></span>
       </button>
     </nav>
     
-    <AuthSheet isOpen={isAuthOpen} onClose={() => { setIsAuthOpen(false); setPendingRoute(null); }} />
+    <AuthSheet isOpen={isAuthOpen} onClose={() => {setIsAuthOpen(false);setPendingRoute(null);}} />
     </>,
     document.body
   );
