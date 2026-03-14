@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      nps_initiatives: {
+        Row: {
+          id: string
+          user_id: string
+          summary: string
+          product: string
+          description: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          summary: string
+          product?: string
+          description?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          summary?: string
+          product?: string
+          description?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       event_registrations: {
         Row: {
           event_id: string

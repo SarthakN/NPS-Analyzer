@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Navbar } from '@/components/Navbar';
 import { SEOHead } from '@/components/SEOHead';
 import { Button } from '@/components/ui/button';
@@ -14,8 +15,10 @@ import {
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { INITIATIVE_DESCRIPTION_SYSTEM_PROMPT } from '@/INITIATIVE_DESCRIPTION';
+import { supabase } from '@/integrations/supabase/client';
 
 const INITIATIVES_KEY = 'nps-initiatives';
+const OPENAI_KEY_STORAGE = 'nps:openaiKey';
 
 const PRODUCT_OPTIONS = [
   'PowerSchool Applicant Tracking',
@@ -26,69 +29,186 @@ const PRODUCT_OPTIONS = [
 
 interface Initiative {
   id: string;
-  title: string;
+  summary: string;
   product: string;
   description: string;
 }
 
 const Configure = () => {
-  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const location = useLocation();
+  const [openaiApiKey, setOpenaiApiKey] = useState(() => {
+    try {
+      return sessionStorage.getItem(OPENAI_KEY_STORAGE) ?? '';
+    } catch {
+      return '';
+    }
+  });
   const [initiatives, setInitiatives] = useState<Initiative[]>([]);
-  const [title, setTitle] = useState('');
-  const [product, setProduct] = useState('');
+  const [summary, setSummary] = useState('');
+  const [product, setProduct] = useState<string>(PRODUCT_OPTIONS[0]);
   const [description, setDescription] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [loadingInitiatives, setLoadingInitiatives] = useState(true);
 
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(INITIATIVES_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Initiative[];
-        setInitiatives(parsed.map((i) => ({ ...i, product: i.product ?? '' })));
+  const loadInitiativesFromDb = useCallback(async () => {
+    setLoadingInitiatives(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      const { data, error } = await supabase
+        .from('nps_initiatives')
+        .select('id, summary, product, description')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: true });
+      if (!error && data && data.length > 0) {
+        setInitiatives(data.map((r) => ({
+          id: r.id,
+          summary: r.summary ?? '',
+          product: r.product ?? '',
+          description: r.description ?? '',
+        })));
+      } else {
+        try {
+          const stored = sessionStorage.getItem(INITIATIVES_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored) as { id: string; title?: string; summary?: string; product: string; description: string }[];
+            const toMigrate = parsed.map((i) => ({
+              summary: i.summary ?? i.title ?? '',
+              product: i.product ?? '',
+              description: i.description ?? '',
+            }));
+            if (toMigrate.length > 0) {
+              const inserted: Initiative[] = [];
+              for (const item of toMigrate) {
+                const { data: insertedRow, error: insertErr } = await supabase
+                  .from('nps_initiatives')
+                  .insert({
+                    user_id: session.user.id,
+                    summary: item.summary,
+                    product: item.product,
+                    description: item.description,
+                  })
+                  .select('id, summary, product, description')
+                  .single();
+                if (!insertErr && insertedRow) {
+                  inserted.push({
+                    id: insertedRow.id,
+                    summary: insertedRow.summary,
+                    product: insertedRow.product,
+                    description: insertedRow.description,
+                  });
+                }
+              }
+              setInitiatives(inserted.length > 0 ? inserted : parsed.map((i) => ({
+                id: i.id,
+                summary: i.summary ?? i.title ?? '',
+                product: i.product ?? '',
+                description: i.description ?? '',
+              })));
+            } else {
+              setInitiatives([]);
+            }
+          } else {
+            setInitiatives([]);
+          }
+        } catch {
+          setInitiatives([]);
+        }
       }
-    } catch {
-      setInitiatives([]);
+    } else {
+      try {
+        const stored = sessionStorage.getItem(INITIATIVES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored) as { id: string; title?: string; summary?: string; product: string; description: string }[];
+          setInitiatives(
+            parsed.map((i) => ({
+              id: i.id,
+              summary: i.summary ?? i.title ?? '',
+              product: i.product ?? '',
+              description: i.description ?? '',
+            }))
+          );
+        } else {
+          setInitiatives([]);
+        }
+      } catch {
+        setInitiatives([]);
+      }
     }
+    setLoadingInitiatives(false);
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(INITIATIVES_KEY, JSON.stringify(initiatives));
-  }, [initiatives]);
+    loadInitiativesFromDb();
+  }, [location.pathname, loadInitiativesFromDb]);
 
-  const handleAdd = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!loadingInitiatives) {
+      sessionStorage.setItem(INITIATIVES_KEY, JSON.stringify(initiatives));
+    }
+  }, [initiatives, loadingInitiatives]);
+
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedTitle = title.trim();
+    const trimmedSummary = summary.trim();
     const trimmedDesc = description.trim();
 
-    if (!trimmedTitle) {
-      toast.error('Title is required');
+    if (!trimmedSummary) {
+      toast.error('Summary is required');
       return;
     }
 
-    setInitiatives((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        title: trimmedTitle,
-        product: product ?? '',
-        description: trimmedDesc,
-      },
-    ]);
-    setTitle('');
-    setProduct('');
+    const newInitiative = {
+      id: crypto.randomUUID(),
+      summary: trimmedSummary,
+      product: product ?? '',
+      description: trimmedDesc,
+    };
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      const { data, error } = await supabase
+        .from('nps_initiatives')
+        .insert({
+          user_id: session.user.id,
+          summary: trimmedSummary,
+          product: product ?? '',
+          description: trimmedDesc,
+        })
+        .select('id, summary, product, description')
+        .single();
+      if (!error && data) {
+        setInitiatives((prev) => [...prev, { id: data.id, summary: data.summary, product: data.product, description: data.description }]);
+        toast.success('Initiative added');
+      } else {
+        setInitiatives((prev) => [...prev, newInitiative]);
+        toast.warning('Saved locally. Run the Supabase migration to persist across sessions.');
+      }
+    } else {
+      setInitiatives((prev) => [...prev, newInitiative]);
+      toast.success('Initiative added');
+    }
+    setSummary('');
+    setProduct(PRODUCT_OPTIONS[0]);
     setDescription('');
-    toast.success('Initiative added');
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user?.id) {
+      const { error } = await supabase.from('nps_initiatives').delete().eq('id', id).eq('user_id', session.user.id);
+      if (error) {
+        toast.error(error.message ?? 'Failed to remove initiative');
+        return;
+      }
+    }
     setInitiatives((prev) => prev.filter((i) => i.id !== id));
     toast.success('Initiative removed');
   };
 
   const handleGenerateDescription = async () => {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) {
-      toast.error('Enter a title first');
+    const trimmedSummary = summary.trim();
+    if (!trimmedSummary) {
+      toast.error('Enter a summary first');
       return;
     }
     if (!openaiApiKey.trim()) {
@@ -114,7 +234,7 @@ const Configure = () => {
               role: 'user',
               content: [
                 product ? `Product: ${product}` : null,
-                `Title: ${trimmedTitle}`,
+                `Summary: ${trimmedSummary}`,
                 description.trim() ? `Description: ${description.trim()}` : 'Description:',
               ]
                 .filter(Boolean)
@@ -159,7 +279,16 @@ const Configure = () => {
             <Input
               type="password"
               value={openaiApiKey}
-              onChange={(e) => setOpenaiApiKey(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setOpenaiApiKey(v);
+                try {
+                  if (v) sessionStorage.setItem(OPENAI_KEY_STORAGE, v);
+                  else sessionStorage.removeItem(OPENAI_KEY_STORAGE);
+                } catch {
+                  // ignore
+                }
+              }}
               placeholder="sk-..."
               className="border-border font-mono"
               autoComplete="off"
@@ -171,17 +300,17 @@ const Configure = () => {
 
           <h2 className="text-lg font-medium mb-2">Initiatives</h2>
           <p className="text-muted-foreground mb-6">
-            Add initiatives one by one. Each initiative has a title and description.
+            Add initiatives one by one. Each initiative has a summary and description.
           </p>
 
           <form onSubmit={handleAdd} className="space-y-4 mb-12">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium block mb-2">Title</label>
+                <label className="text-sm font-medium block mb-2">Summary</label>
                 <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter initiative title"
+                  value={summary}
+                  onChange={(e) => setSummary(e.target.value)}
+                  placeholder="Enter initiative summary"
                   className="border-border"
                 />
               </div>
@@ -202,38 +331,39 @@ const Configure = () => {
               </div>
             </div>
             <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <label className="text-sm font-medium">Description</label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateDescription}
-                  disabled={generating || !title.trim()}
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-4 h-4 mr-1.5" />
-                  )}
-                  Generate
-                </Button>
-              </div>
+              <label className="text-sm font-medium block mb-2">Description</label>
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter initiative description or click Generate to create one with AI"
+                placeholder="Enter initiative description with details about problems and solutions"
                 rows={16}
                 className="border-border min-h-[320px]"
               />
             </div>
-            <Button type="submit" className="bg-[hsl(300,100%,71%)] hover:bg-[hsl(300,100%,65%)] text-foreground">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Initiative
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateDescription}
+                disabled={generating || !summary.trim()}
+              >
+                {generating ? (
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4 mr-1.5" />
+                )}
+                Generate
+              </Button>
+              <Button type="submit" className="bg-[hsl(300,100%,71%)] hover:bg-[hsl(300,100%,65%)] text-foreground">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Initiative
+              </Button>
+            </div>
           </form>
 
-          {initiatives.length > 0 ? (
+          {loadingInitiatives ? (
+            <p className="text-muted-foreground">Loading initiatives…</p>
+          ) : initiatives.length > 0 ? (
             <div>
               <h2 className="text-lg font-medium mb-4">Your Initiatives ({initiatives.length})</h2>
               <ul className="space-y-4">
@@ -244,7 +374,7 @@ const Configure = () => {
                   >
                     <div className="flex justify-between items-start gap-4">
                       <div>
-                        <h3 className="font-medium">{init.title}</h3>
+                        <h3 className="font-medium">{init.summary}</h3>
                         {init.product && (
                           <p className="text-xs text-muted-foreground mt-0.5">{init.product}</p>
                         )}
@@ -265,7 +395,9 @@ const Configure = () => {
               </ul>
             </div>
           ) : (
-            <p className="text-muted-foreground">No initiatives yet. Add your first one above.</p>
+            <p className="text-muted-foreground">
+              No initiatives yet. Add your first one above. Initiatives are saved permanently to your account.
+            </p>
           )}
         </div>
       </div>
