@@ -11,6 +11,7 @@
 import Papa from 'papaparse';
 
 const SCORE_COLUMN_CANDIDATES = ['Survey Score', 'SurveyScore', 'Score', 'survey_score', 'survey score'];
+const COMMENT_COLUMN_CANDIDATES = ['Survey Comment', 'Survey Comments', 'SurveyComments', 'Comments', 'Comment', 'survey comment', 'survey comments'];
 
 /** Promoter: 9 or 10. Passive: 7 or 8. Detractor: <=6 */
 function getCounts(scores: number[]) {
@@ -29,6 +30,28 @@ export interface NpsRow {
   detractors: number;
 }
 
+export interface SurveyComment {
+  comment: string;
+  score: number;
+  sentiment: 'positive' | 'neutral' | 'negative';
+  accountName?: string;
+}
+
+export interface LabeledComment extends SurveyComment {
+  labels: string[];
+}
+
+export interface CommentInsight {
+  issue: string;
+  theme: string;
+  /** Initiative summaries that would resolve this issue (from second-pass resolution check) */
+  resolvedBy?: string[];
+}
+
+export interface InsightComment extends SurveyComment {
+  themes: CommentInsight[];
+}
+
 export interface NpsAnalysisResult {
   overallNps: number | null;
   totalResponses: number;
@@ -39,6 +62,7 @@ export interface NpsAnalysisResult {
   byAccount: NpsRow[];
   byRole: NpsRow[];
   byState: NpsRow[];
+  surveyComments: SurveyComment[];
 }
 
 function parseScore(val: string): number | null {
@@ -88,12 +112,29 @@ function getScore(row: Record<string, string>): number | null {
   return parseScore(row[key] ?? '');
 }
 
+function getComment(row: Record<string, string>): string {
+  const keys = Object.keys(row);
+  const key = keys.find((k) => {
+    const normalized = String(k).replace(/\uFEFF/g, '').trim().toLowerCase();
+    return COMMENT_COLUMN_CANDIDATES.some((c) => normalized === c.toLowerCase());
+  });
+  if (!key) return '';
+  return String(row[key] ?? '').trim();
+}
+
+function getSentiment(score: number): 'positive' | 'neutral' | 'negative' {
+  if (score >= 9) return 'positive';
+  if (score >= 7) return 'neutral';
+  return 'negative';
+}
+
 export function analyzeNpsCsv(
   csvText: string,
   minResponses: number = 1
 ): NpsAnalysisResult {
   const rows = parseCsv(csvText);
   const surveyScores: number[] = [];
+  const surveyComments: SurveyComment[] = [];
   const byAccount = new Map<string, number[]>();
   const byRole = new Map<string, number[]>();
   const byState = new Map<string, number[]>();
@@ -103,7 +144,17 @@ export function analyzeNpsCsv(
     if (score === null) continue;
     surveyScores.push(score);
 
+    const comment = getComment(row);
     const account = getCol(row, ['Account Name', 'AccountName']);
+    if (comment) {
+      surveyComments.push({
+        comment,
+        score,
+        sentiment: getSentiment(score),
+        accountName: account || undefined,
+      });
+    }
+
     if (account) {
       if (!byAccount.has(account)) byAccount.set(account, []);
       byAccount.get(account)!.push(score);
@@ -160,5 +211,6 @@ export function analyzeNpsCsv(
     byAccount: toList(byAccount, minResponses),
     byRole: toList(byRole, minResponses),
     byState: toList(byState, minResponses),
+    surveyComments,
   };
 }
