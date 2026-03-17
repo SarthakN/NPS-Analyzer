@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Eval Benchmarks",
+  "description": "Schema for eval benchmark thresholds",
+  "type": "object",
+  "properties": {
+    "description": { "type": "string" },
+    "version": { "type": "string" },
+    "evalSetSize": { "type": "number", "minimum": 1 },
+    "benchmarks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["target", "operator", "unit"],
+        "properties": {
+          "target": { "type": "number", "minimum": 0 },
+          "operator": {
+            "type": "string",
+            "enum": [">=", ">", "<=", "<", "=="]
+          },
+          "unit": {
+            "type": "string",
+            "enum": ["percent", "score"]
+          },
+          "scale": {
+            "type": "array",
+            "items": { "type": "number" },
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "description": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,129 +1,98 @@
-# Event Management Platform
+# NPS Analyzer
 
-A modern, full-stack event management platform built with React, TypeScript, and Lovable Cloud. Create, discover, and manage events with an intuitive interface and powerful features.
+A full-stack application for analyzing Net Promoter Score (NPS) feedback. Upload NPS survey CSV files, visualize scores by account and region, and gain AI-powered insights into customer sentiment.
 
-## 🌟 Features
+## What This Product Does
 
-### Event Management
-- **Create Events**: Easy-to-use form with image upload, date/time selection, and location integration
-- **Edit Events**: Update your events anytime with full editing capabilities
-- **Delete Events**: Remove events you've created with confirmation dialog
-- **Event Discovery**: Browse all upcoming events in a beautiful card layout
-- **Event Details**: Rich event pages with countdown timers, location maps, and registration
+**NPS Analyzer** turns raw NPS feedback into actionable insights:
 
-### User Authentication
-- **Secure Sign Up/Login**: Email and password authentication with automatic email confirmation
-- **User Profiles**: Automatic profile creation with display names
-- **Protected Routes**: Secure admin and event management pages
-- **Session Management**: Persistent authentication across sessions
+- **Upload & Analyze** — Upload CSV files containing NPS survey data (scores, comments, account names). The app parses and classifies responses as Promoters (9–10), Passives (7–8), or Detractors (0–6).
+- **Results Dashboard** — View overall NPS score, breakdown by account/region, sortable tables, and a US state map showing regional performance.
+- **Configure Initiatives** — Define product initiatives and use AI (OpenAI) to generate descriptions. Track which initiatives address specific feedback themes.
+- **Comment Insights** — Analyze survey comments for themes, sentiment, and suggested resolutions tied to your initiatives.
 
-### Location Integration
-- **Google Maps Autocomplete**: Search and select locations with autocomplete suggestions
-- **Interactive Maps**: Embedded Google Maps on event detail pages
-- **Get Directions**: Direct links to Google Maps for navigation
+The app also includes **event management** features (create, edit, discover events with location support) built on the same stack.
 
-### Image Management
-- **Image Upload**: Drag-and-drop or click to upload event images
-- **File Validation**: Automatic validation for file type (JPG, PNG, GIF, WebP) and size (max 5MB)
-- **Secure Storage**: Images stored securely in cloud storage
+## How to Run
 
-### Admin Features
-- **Admin Dashboard**: Manage all events from a centralized dashboard
-- **Event Moderation**: View, edit, or delete any event
-- **User Management**: Access to user profiles and event data
+### Prerequisites
 
-### SEO Optimized
-- **Meta Tags**: Proper title, description, and keywords for each page
-- **Semantic HTML**: Structured markup for better search engine visibility
-- **Open Graph Tags**: Social media preview optimization
-- **Responsive Design**: Mobile-first design that works on all devices
+- [Node.js](https://nodejs.org/) (v18+ recommended) and npm
+- Optional: [nvm](https://github.com/nvm-sh/nvm#installing-and-updating) for managing Node versions
 
-## Project info
-
-**URL**: https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Quick Start
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# 1. Clone the repository
 git clone <YOUR_GIT_URL>
+cd nps
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# 2. Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
+# 3. Set up environment variables
+# Create a .env file in the project root with:
+#   VITE_SUPABASE_URL="your-supabase-url"
+#   VITE_SUPABASE_PUBLISHABLE_KEY="your-supabase-anon-key"
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:5173` (or the port shown in the terminal).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Available Scripts
 
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build locally |
+| `npm run analyze:nps` | Run NPS analysis script (Python) |
+| `npm run lint` | Run ESLint |
 
 ## Configuration
 
-### Google Maps Places Autocomplete
+### Required: Supabase
 
-This project uses Google Maps Places API for location autocomplete. To enable this feature:
+The app uses [Supabase](https://supabase.com/) for authentication and data storage. Create a project and add to `.env`:
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project or select an existing one
-3. Enable the **Places API (New)** in the API Library
-4. Go to **Credentials** → **Create Credentials** → **API Key**
-5. Copy the API key
-6. Add it to your `.env` file:
+```
+VITE_SUPABASE_URL="https://your-project.supabase.co"
+VITE_SUPABASE_PUBLISHABLE_KEY="your-anon-key"
+```
+
+### Optional: Google Maps
+
+For event location features (autocomplete, maps):
+
+1. Enable **Places API (New)** in [Google Cloud Console](https://console.cloud.google.com/)
+2. Create an API key
+3. Add to `.env`:
    ```
    VITE_GOOGLE_MAPS_API_KEY="your-api-key-here"
    ```
 
-**Optional but recommended:** Restrict your API key to only work with the Places API and your domain for security.
+### Optional: OpenAI
 
-## How can I deploy this project?
+For AI-generated initiative descriptions in Configure:
 
-Simply open [Lovable](https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5) and click on Share -> Publish.
+- Add your OpenAI API key when prompted in the Configure page (stored in session storage)
 
-## Can I connect a custom domain to my Lovable project?
+## Technologies
 
-Yes, you can!
+- **Frontend:** React, TypeScript, Vite
+- **UI:** shadcn/ui, Tailwind CSS, Radix UI
+- **Backend:** Supabase (auth, database)
+- **Charts & Maps:** Recharts, react-simple-maps
+- **Data:** PapaParse (CSV), TanStack Query
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Project Info
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+**Lovable Project:** [https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5](https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5)
+
+Changes made via Lovable are committed automatically to this repo. You can also edit locally and push changes.
+
+## Deployment
+
+Open the [Lovable project](https://lovable.dev/projects/f1ba0c74-af75-4389-a8ae-60baf80911b5) and use **Share → Publish** to deploy. Custom domains can be configured under **Project → Settings → Domains**.

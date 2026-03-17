@@ -1,0 +1,58 @@
+{
+  "$schema": "./benchmarks.schema.json",
+  "description": "Benchmark thresholds for LLM-based unsupervised classification evals",
+  "version": "1.0.0",
+  "benchmarks": {
+    "clusterCohesion": {
+      "target": 0.85,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "% PASS clusters"
+    },
+    "clusterSeparation": {
+      "target": 0.9,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "Clusters represent clearly different topics"
+    },
+    "labelQuality": {
+      "target": 4,
+      "operator": ">=",
+      "unit": "score",
+      "scale": [1, 5],
+      "description": "Average label accuracy score"
+    },
+    "stability": {
+      "target": 0.8,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "% items that remain in same cluster across runs"
+    },
+    "coverage": {
+      "target": 0.9,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "clustered_items / total_items"
+    },
+    "humanAlignment": {
+      "target": 4,
+      "operator": ">=",
+      "unit": "score",
+      "scale": [1, 5],
+      "description": "Aggregate of coherence, label clarity, topic usefulness"
+    },
+    "businessUsefulness": {
+      "target": 0.8,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "% clusters that are actionable"
+    },
+    "pairwiseAccuracy": {
+      "target": 0.85,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "LLM judge agreement with cluster output"
+    }
+  },
+  "evalSetSize": 50
+}
