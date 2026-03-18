@@ -20,7 +20,7 @@
           },
           "unit": {
             "type": "string",
-            "enum": ["percent", "score"]
+            "enum": ["percent", "score", "raw"]
           },
           "scale": {
             "type": "array",
