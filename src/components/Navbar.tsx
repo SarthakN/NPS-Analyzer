@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Sheet,
   SheetContent,
@@ -10,28 +11,50 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Settings2 } from 'lucide-react';
+import { Settings2, Play, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   loadBenchmarks,
   saveBenchmarks,
+  loadEnabledMetrics,
+  saveEnabledMetrics,
   BENCHMARK_DEFAULTS,
   BENCHMARK_LABELS,
+  BENCHMARK_KEYS,
   toInputValue,
   fromInputValue,
   type BenchmarkKey,
 } from '@/lib/benchmarks';
+
+const BENCHMARK_CATEGORIES = [
+  'Classification Quality',
+  'Safety',
+  'System Performance',
+  'Output Similarity',
+  'Safety & Reliability',
+] as const;
+import {
+  runEvals,
+  saveEvalResult,
+  getNpsResultFromStorage,
+} from '@/lib/runEvals';
 
 const navLinkClass =
   'relative overflow-hidden h-[34px] px-3 flex items-center text-[11px] font-medium uppercase border border-black leading-none group';
 
 export const Navbar: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [benchmarks, setBenchmarks] = useState(() => loadBenchmarks());
+  const [enabledMetrics, setEnabledMetrics] = useState(() => loadEnabledMetrics());
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
-    if (advancedOpen) setBenchmarks(loadBenchmarks());
+    if (advancedOpen) {
+      setBenchmarks(loadBenchmarks());
+      setEnabledMetrics(loadEnabledMetrics());
+    }
   }, [advancedOpen]);
 
   const isActive = (path: string) => {
@@ -102,52 +125,136 @@ export const Navbar: React.FC = () => {
           </SheetDescription>
         </SheetHeader>
         <div className="mt-6 space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            {(Object.keys(BENCHMARK_DEFAULTS) as BenchmarkKey[]).map((key) => {
+          <div className="flex items-center justify-between">
+            <button
+              type="button"
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={() => {
+                const allSelected = BENCHMARK_KEYS.every((k) => enabledMetrics[k]);
+                const next = Object.fromEntries(
+                  BENCHMARK_KEYS.map((k) => [k, !allSelected])
+                ) as Record<BenchmarkKey, boolean>;
+                setEnabledMetrics(next);
+                saveEnabledMetrics(next);
+              }}
+            >
+              {BENCHMARK_KEYS.every((k) => enabledMetrics[k]) ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 max-h-[60vh] overflow-y-auto pr-2">
+            {BENCHMARK_CATEGORIES.map((category) => {
+              const keysInCategory = BENCHMARK_KEYS.filter(
+                (k) => BENCHMARK_DEFAULTS[k].category === category
+              );
+              if (keysInCategory.length === 0) return null;
+              return (
+                <div key={category}>
+                  <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2 mt-4 first:mt-0">
+                    {category}
+                  </h4>
+                  <div className="space-y-2">
+                    {keysInCategory.map((key) => {
               const spec = benchmarks[key];
               const label = BENCHMARK_LABELS[key];
               const displayValue = toInputValue(spec);
               const isPercent = spec.unit === 'percent';
+              const isRaw = spec.unit === 'raw';
               const min = spec.scale?.[0] ?? (isPercent ? 0 : 0);
-              const max = spec.scale?.[1] ?? (isPercent ? 100 : 100);
+              const max = spec.scale?.[1] ?? (isPercent ? 100 : isRaw ? 10000 : 5);
+              const enabled = enabledMetrics[key];
               return (
-                <div key={key}>
-                  <label className="text-sm font-medium block mb-1.5">{label}</label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      min={min}
-                      max={max}
-                      step={isPercent ? 1 : 0.5}
-                      value={displayValue}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        if (!Number.isNaN(val)) {
-                          const next = {
-                            ...benchmarks,
-                            [key]: {
-                              ...spec,
-                              target: fromInputValue(spec, val),
-                            },
-                          };
-                          setBenchmarks(next);
-                          saveBenchmarks(next);
-                        }
-                      }}
-                      className="border-border w-24"
-                    />
-                    {isPercent && <span className="text-sm text-muted-foreground">%</span>}
-                    {spec.scale && (
-                      <span className="text-sm text-muted-foreground">/ {max}</span>
+                <div key={key} className="flex items-start gap-3 p-3 rounded-lg border border-border bg-muted/30">
+                  <Checkbox
+                    id={`metric-${key}`}
+                    checked={enabled}
+                    onCheckedChange={(checked) => {
+                      const next = { ...enabledMetrics, [key]: !!checked };
+                      setEnabledMetrics(next);
+                      saveEnabledMetrics(next);
+                    }}
+                    className="mt-0.5"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <label htmlFor={`metric-${key}`} className="text-sm font-medium block mb-1.5 cursor-pointer">
+                      {label}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        min={min}
+                        max={max}
+                        step={isPercent ? 1 : isRaw ? (spec.target < 0.1 ? 0.001 : 1) : 0.5}
+                        value={displayValue}
+                        disabled={!enabled}
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value);
+                          if (!Number.isNaN(val)) {
+                            const next = {
+                              ...benchmarks,
+                              [key]: {
+                                ...spec,
+                                target: fromInputValue(spec, val),
+                              },
+                            };
+                            setBenchmarks(next);
+                            saveBenchmarks(next);
+                          }
+                        }}
+                        className="border-border w-24"
+                      />
+                      {isPercent && <span className="text-sm text-muted-foreground">%</span>}
+                      {spec.unit === 'score' && spec.scale && (
+                        <span className="text-sm text-muted-foreground">/ {max}</span>
+                      )}
+                      {isRaw && spec.description?.includes('ms') && (
+                        <span className="text-sm text-muted-foreground">ms</span>
+                      )}
+                    </div>
+                    {spec.description && (
+                      <p className="text-xs text-muted-foreground mt-0.5">{spec.description}</p>
                     )}
                   </div>
-                  {spec.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{spec.description}</p>
-                  )}
+                </div>
+              );
+            })}
+                  </div>
                 </div>
               );
             })}
           </div>
+          <Button
+            type="button"
+            className="w-full"
+            disabled={running || BENCHMARK_KEYS.every((k) => !enabledMetrics[k])}
+            onClick={async () => {
+              const npsResult = getNpsResultFromStorage();
+              if (!npsResult?.surveyComments?.length) {
+                toast.error('No NPS data found. Upload a file and run analysis first.');
+                return;
+              }
+              setRunning(true);
+              try {
+                const enabled = BENCHMARK_KEYS.filter((k) => enabledMetrics[k]);
+                const apiKey = sessionStorage.getItem('nps:openaiKey');
+                const result = await runEvals(npsResult, enabled, apiKey ?? undefined);
+                saveEvalResult(result);
+                setAdvancedOpen(false);
+                navigate('/evaluation', { state: { result } });
+                toast.success('Evaluation complete');
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : 'Evaluation failed');
+              } finally {
+                setRunning(false);
+              }
+            }}
+          >
+            {running ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Play className="w-4 h-4 mr-2" />
+            )}
+            Run evaluation
+          </Button>
           <Button
             type="button"
             variant="outline"

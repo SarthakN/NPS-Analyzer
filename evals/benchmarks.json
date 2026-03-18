@@ -1,58 +1,135 @@
 {
   "$schema": "./benchmarks.schema.json",
-  "description": "Benchmark thresholds for LLM-based unsupervised classification evals",
-  "version": "1.0.0",
+  "description": "Benchmark thresholds for LLM classification evals",
+  "version": "2.0.0",
   "benchmarks": {
-    "clusterCohesion": {
-      "target": 0.85,
+    "factualAccuracy": {
+      "target": 4,
       "operator": ">=",
-      "unit": "percent",
-      "description": "% PASS clusters"
+      "unit": "score",
+      "scale": [1, 5],
+      "description": "LLM judge: does classification reflect input meaning?"
     },
     "clusterSeparation": {
       "target": 0.9,
       "operator": ">=",
       "unit": "percent",
-      "description": "Clusters represent clearly different topics"
+      "description": "LLM judge: % cluster pairs that are clearly different topics"
     },
-    "labelQuality": {
-      "target": 4,
-      "operator": ">=",
-      "unit": "score",
-      "scale": [1, 5],
-      "description": "Average label accuracy score"
-    },
-    "stability": {
-      "target": 0.8,
-      "operator": ">=",
-      "unit": "percent",
-      "description": "% items that remain in same cluster across runs"
-    },
-    "coverage": {
+    "consistency": {
       "target": 0.9,
       "operator": ">=",
       "unit": "percent",
-      "description": "clustered_items / total_items"
+      "description": "Avg cosine similarity across N runs"
     },
-    "humanAlignment": {
+    "classificationAccuracy": {
+      "target": 0.85,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "% overlap: LLM vs embedding clustering"
+    },
+    "creativity": {
       "target": 4,
       "operator": ">=",
       "unit": "score",
       "scale": [1, 5],
-      "description": "Aggregate of coherence, label clarity, topic usefulness"
+      "description": "Human: novelty, insightfulness, non-generic"
     },
-    "businessUsefulness": {
+    "hallucinationRate": {
+      "target": 0.05,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "% outputs with unsupported/fabricated info"
+    },
+    "piiLeakageRate": {
+      "target": 0,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "% outputs exposing sensitive info"
+    },
+    "latencyP50": {
+      "target": 1000,
+      "operator": "<=",
+      "unit": "raw",
+      "description": "p50 latency (ms)"
+    },
+    "latencyP95": {
+      "target": 2000,
+      "operator": "<=",
+      "unit": "raw",
+      "description": "p95 latency (ms)"
+    },
+    "latencyP99": {
+      "target": 5000,
+      "operator": "<=",
+      "unit": "raw",
+      "description": "p99 latency (ms)"
+    },
+    "rps": {
+      "target": 10,
+      "operator": ">=",
+      "unit": "raw",
+      "description": "Requests per second"
+    },
+    "queueWaitTime": {
+      "target": 500,
+      "operator": "<=",
+      "unit": "raw",
+      "description": "Time before model execution (ms)"
+    },
+    "costPerRequest": {
+      "target": 0.01,
+      "operator": "<=",
+      "unit": "raw",
+      "description": "Cost = (input + output tokens) * price"
+    },
+    "contextWindowUtilization": {
       "target": 0.8,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "tokens_used / max_context"
+    },
+    "errorRate": {
+      "target": 0.01,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "API failures, timeouts, invalid outputs"
+    },
+    "rouge": {
+      "target": 0.7,
       "operator": ">=",
       "unit": "percent",
-      "description": "% clusters that are actionable"
+      "description": "vs reference summaries/labels"
     },
-    "pairwiseAccuracy": {
+    "bertScore": {
       "target": 0.85,
       "operator": ">=",
       "unit": "percent",
-      "description": "LLM judge agreement with cluster output"
+      "description": "Semantic similarity vs reference"
+    },
+    "compressionRatio": {
+      "target": 0.5,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "output_length / input_length"
+    },
+    "keyPointCoverage": {
+      "target": 0.85,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "% key points from input captured"
+    },
+    "modelDrift": {
+      "target": 0.1,
+      "operator": "<=",
+      "unit": "percent",
+      "description": "KL divergence vs baseline"
+    },
+    "thumbsUpDownRatio": {
+      "target": 0.8,
+      "operator": ">=",
+      "unit": "percent",
+      "description": "Thumbs up / (up + down)"
     }
-  },
-  "evalSetSize": 50
+  }
 }

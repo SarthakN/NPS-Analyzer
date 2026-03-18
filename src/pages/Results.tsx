@@ -17,6 +17,7 @@ import { Sparkles, ChevronUp, ChevronDown, Map as MapIcon, List, Loader2, Messag
 import { toast } from 'sonner';
 import type { NpsAnalysisResult, NpsRow, InsightComment } from '@/lib/npsAnalysis';
 import { generateCommentInsights, checkInitiativeResolution } from '@/lib/commentLabels';
+import { saveInsightComments } from '@/lib/runEvals';
 import { supabase } from '@/integrations/supabase/client';
 
 const PAGE_SIZE = 10;
@@ -317,12 +318,14 @@ const Results = () => {
     try {
       const insights = await generateCommentInsights(comments, productContext, apiKey.trim());
       setInsightComments(insights);
+      saveInsightComments(insights);
       toast.success(`Generated insights for ${insights.length} comments`);
 
       if (initiatives.length > 0) {
         toast.info('Checking which initiatives resolve these issues…');
         const withResolution = await checkInitiativeResolution(insights, initiatives, apiKey.trim());
         setInsightComments(withResolution);
+        saveInsightComments(withResolution);
         const resolvedCount = withResolution.reduce(
           (sum, c) => sum + (c.themes?.filter((t) => t.resolvedBy?.length).length ?? 0),
           0
