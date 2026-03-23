@@ -37,7 +37,12 @@ const EVAL_SAMPLE_SIZE = 50;
 function formatClassificationOutput(comment: InsightComment): string {
   const themes = comment.themes ?? [];
   if (themes.length === 0) return '(no themes extracted)';
-  return themes.map((t) => `- ${t.theme}: ${t.issue}`).join('\n');
+  return themes
+    .map((t) => {
+      const parts = [t.issue, t.feature, t.theme].filter(Boolean);
+      return `- ${parts.join(' · ')}`;
+    })
+    .join('\n');
 }
 
 /** Extract text from Responses API output */

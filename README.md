@@ -8,8 +8,8 @@ A full-stack application for analyzing Net Promoter Score (NPS) feedback. Upload
 
 - **Upload & Analyze** — Upload CSV files containing NPS survey data (scores, comments, account names). The app parses and classifies responses as Promoters (9–10), Passives (7–8), or Detractors (0–6).
 - **Results Dashboard** — View overall NPS score, breakdown by account/region, sortable tables, and a US state map showing regional performance.
-- **Configure Initiatives** — Define product initiatives and use AI (OpenAI) to generate descriptions. Track which initiatives address specific feedback themes.
-- **Comment Insights** — Analyze survey comments for themes, sentiment, and suggested resolutions tied to your initiatives.
+- **Configure Roadmap** — Define product Roadmap items and use AI (OpenAI) to generate descriptions. Track which Roadmap items address specific feedback themes.
+- **Comment Insights** — Analyze survey comments for themes, sentiment, and suggested resolutions tied to your Roadmap.
 
 The app also includes **event management** features (create, edit, discover events with location support) built on the same stack.
 
@@ -75,7 +75,7 @@ For event location features (autocomplete, maps):
 
 ### Optional: OpenAI
 
-For AI-generated initiative descriptions in Configure:
+For AI-generated Roadmap descriptions in Configure:
 
 - Add your OpenAI API key when prompted in the Configure page (stored in session storage)
 

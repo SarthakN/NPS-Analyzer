@@ -43,8 +43,10 @@ export interface LabeledComment extends SurveyComment {
 
 export interface CommentInsight {
   issue: string;
+  /** Product feature area (e.g. Application manager, Reference) */
+  feature?: string;
   theme: string;
-  /** Initiative summaries that would resolve this issue (from second-pass resolution check) */
+  /** Roadmap summaries that would resolve this issue (from second-pass resolution check) */
   resolvedBy?: string[];
 }
 

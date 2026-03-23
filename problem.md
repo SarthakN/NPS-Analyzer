@@ -6,7 +6,7 @@ Product and customer success teams collect Net Promoter Score (NPS) feedback thr
 
 1. **Understand the full picture** — NPS scores alone don't reveal *why* customers feel the way they do. Comments contain the real insights but are buried in spreadsheets.
 2. **Segment and compare** — Comparing performance across accounts, roles, or regions requires manual aggregation and formula work in Excel.
-3. **Connect feedback to action** — Even when themes emerge from comments, there's no structured way to map them to product initiatives or track resolution.
+3. **Connect feedback to action** — Even when themes emerge from comments, there's no structured way to map them to product Roadmap or track resolution.
 4. **Visualize at scale** — Geographic or account-level patterns are hard to spot in tabular data.
 
 ## Key Pain Points
@@ -15,7 +15,7 @@ Product and customer success teams collect Net Promoter Score (NPS) feedback thr
 |------------|--------|
 | Manual CSV processing | Time-consuming, error-prone analysis; no single source of truth |
 | Disconnected insights | Comments and scores live in separate workflows; themes are lost |
-| No initiative linkage | Product roadmap and customer feedback are siloed; hard to prove impact |
+| No Roadmap linkage | Product roadmap and customer feedback are siloed; hard to prove impact |
 | Limited segmentation | Ad-hoc filtering; no consistent breakdown by account, role, or region |
 | Poor visualization | Tables don't reveal geographic or trend patterns |
 
@@ -33,5 +33,5 @@ A solution should:
 - Compute and display NPS scores with Promoter/Passive/Detractor breakdown
 - Segment results by account, role, and geographic region
 - Surface themes and sentiment from free-text comments
-- Allow users to define initiatives and see which feedback they address
+- Allow users to define Roadmap items and see which feedback they address
 - Provide visualizations (tables, maps, charts) that support decision-making

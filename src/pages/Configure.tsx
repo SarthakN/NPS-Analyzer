@@ -14,10 +14,10 @@ import {
 } from '@/components/ui/select';
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { INITIATIVE_DESCRIPTION_SYSTEM_PROMPT } from '@/INITIATIVE_DESCRIPTION';
+import { ROADMAP_DESCRIPTION_SYSTEM_PROMPT } from '@/ROADMAP_DESCRIPTION';
 import { supabase } from '@/integrations/supabase/client';
 
-const INITIATIVES_KEY = 'nps-initiatives';
+const ROADMAPS_KEY = 'nps-roadmaps';
 const OPENAI_KEY_STORAGE = 'nps:openaiKey';
 
 const PRODUCT_OPTIONS = [
@@ -27,7 +27,7 @@ const PRODUCT_OPTIONS = [
   'PowerSchool Smart Find Express',
 ] as const;
 
-interface Initiative {
+interface Roadmap {
   id: string;
   summary: string;
   product: string;
@@ -43,15 +43,15 @@ const Configure = () => {
       return '';
     }
   });
-  const [initiatives, setInitiatives] = useState<Initiative[]>([]);
+  const [roadmaps, setRoadmaps] = useState<Roadmap[]>([]);
   const [summary, setSummary] = useState('');
   const [product, setProduct] = useState<string>(PRODUCT_OPTIONS[0]);
   const [description, setDescription] = useState('');
   const [generating, setGenerating] = useState(false);
-  const [loadingInitiatives, setLoadingInitiatives] = useState(true);
+  const [loadingRoadmaps, setLoadingRoadmaps] = useState(true);
 
-  const loadInitiativesFromDb = useCallback(async () => {
-    setLoadingInitiatives(true);
+  const loadRoadmapsFromDb = useCallback(async () => {
+    setLoadingRoadmaps(true);
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user?.id) {
       const { data, error } = await supabase
@@ -60,7 +60,7 @@ const Configure = () => {
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
       if (!error && data && data.length > 0) {
-        setInitiatives(data.map((r) => ({
+        setRoadmaps(data.map((r) => ({
           id: r.id,
           summary: r.summary ?? '',
           product: r.product ?? '',
@@ -68,7 +68,7 @@ const Configure = () => {
         })));
       } else {
         try {
-          const stored = sessionStorage.getItem(INITIATIVES_KEY);
+          const stored = sessionStorage.getItem(ROADMAPS_KEY) ?? sessionStorage.getItem('nps-initiatives');
           if (stored) {
             const parsed = JSON.parse(stored) as { id: string; title?: string; summary?: string; product: string; description: string }[];
             const toMigrate = parsed.map((i) => ({
@@ -77,7 +77,7 @@ const Configure = () => {
               description: i.description ?? '',
             }));
             if (toMigrate.length > 0) {
-              const inserted: Initiative[] = [];
+              const inserted: Roadmap[] = [];
               for (const item of toMigrate) {
                 const { data: insertedRow, error: insertErr } = await supabase
                   .from('nps_initiatives')
@@ -98,28 +98,28 @@ const Configure = () => {
                   });
                 }
               }
-              setInitiatives(inserted.length > 0 ? inserted : parsed.map((i) => ({
+              setRoadmaps(inserted.length > 0 ? inserted : parsed.map((i) => ({
                 id: i.id,
                 summary: i.summary ?? i.title ?? '',
                 product: i.product ?? '',
                 description: i.description ?? '',
               })));
             } else {
-              setInitiatives([]);
+              setRoadmaps([]);
             }
           } else {
-            setInitiatives([]);
+            setRoadmaps([]);
           }
         } catch {
-          setInitiatives([]);
+          setRoadmaps([]);
         }
       }
     } else {
       try {
-        const stored = sessionStorage.getItem(INITIATIVES_KEY);
+        const stored = sessionStorage.getItem(ROADMAPS_KEY) ?? sessionStorage.getItem('nps-initiatives');
         if (stored) {
           const parsed = JSON.parse(stored) as { id: string; title?: string; summary?: string; product: string; description: string }[];
-          setInitiatives(
+          setRoadmaps(
             parsed.map((i) => ({
               id: i.id,
               summary: i.summary ?? i.title ?? '',
@@ -128,24 +128,24 @@ const Configure = () => {
             }))
           );
         } else {
-          setInitiatives([]);
+          setRoadmaps([]);
         }
       } catch {
-        setInitiatives([]);
+        setRoadmaps([]);
       }
     }
-    setLoadingInitiatives(false);
+    setLoadingRoadmaps(false);
   }, []);
 
   useEffect(() => {
-    loadInitiativesFromDb();
-  }, [location.pathname, loadInitiativesFromDb]);
+    loadRoadmapsFromDb();
+  }, [location.pathname, loadRoadmapsFromDb]);
 
   useEffect(() => {
-    if (!loadingInitiatives) {
-      sessionStorage.setItem(INITIATIVES_KEY, JSON.stringify(initiatives));
+    if (!loadingRoadmaps) {
+      sessionStorage.setItem(ROADMAPS_KEY, JSON.stringify(roadmaps));
     }
-  }, [initiatives, loadingInitiatives]);
+  }, [roadmaps, loadingRoadmaps]);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +157,7 @@ const Configure = () => {
       return;
     }
 
-    const newInitiative = {
+    const newRoadmap = {
       id: crypto.randomUUID(),
       summary: trimmedSummary,
       product: product ?? '',
@@ -177,15 +177,15 @@ const Configure = () => {
         .select('id, summary, product, description')
         .single();
       if (!error && data) {
-        setInitiatives((prev) => [...prev, { id: data.id, summary: data.summary, product: data.product, description: data.description }]);
-        toast.success('Initiative added');
+        setRoadmaps((prev) => [...prev, { id: data.id, summary: data.summary, product: data.product, description: data.description }]);
+        toast.success('Roadmap added');
       } else {
-        setInitiatives((prev) => [...prev, newInitiative]);
+        setRoadmaps((prev) => [...prev, newRoadmap]);
         toast.warning('Saved locally. Run the Supabase migration to persist across sessions.');
       }
     } else {
-      setInitiatives((prev) => [...prev, newInitiative]);
-      toast.success('Initiative added');
+      setRoadmaps((prev) => [...prev, newRoadmap]);
+      toast.success('Roadmap added');
     }
     setSummary('');
     setProduct(PRODUCT_OPTIONS[0]);
@@ -197,12 +197,12 @@ const Configure = () => {
     if (session?.user?.id) {
       const { error } = await supabase.from('nps_initiatives').delete().eq('id', id).eq('user_id', session.user.id);
       if (error) {
-        toast.error(error.message ?? 'Failed to remove initiative');
+        toast.error(error.message ?? 'Failed to remove Roadmap item');
         return;
       }
     }
-    setInitiatives((prev) => prev.filter((i) => i.id !== id));
-    toast.success('Initiative removed');
+    setRoadmaps((prev) => prev.filter((i) => i.id !== id));
+    toast.success('Roadmap removed');
   };
 
   const handleGenerateDescription = async () => {
@@ -228,7 +228,7 @@ const Configure = () => {
           messages: [
             {
               role: 'system',
-              content: INITIATIVE_DESCRIPTION_SYSTEM_PROMPT,
+              content: ROADMAP_DESCRIPTION_SYSTEM_PROMPT,
             },
             {
               role: 'user',
@@ -267,7 +267,7 @@ const Configure = () => {
     <div className="min-h-screen bg-background">
       <SEOHead
         title="Configure — NPS Analyzer"
-        description="Add and manage initiatives for your NPS analysis"
+        description="Add and manage Roadmap for your NPS analysis"
       />
       <Navbar />
       <div className="pt-32 pb-24 px-4 md:px-8">
@@ -298,9 +298,9 @@ const Configure = () => {
             </p>
           </div>
 
-          <h2 className="text-lg font-medium mb-2">Initiatives</h2>
+          <h2 className="text-lg font-medium mb-2">Roadmap</h2>
           <p className="text-muted-foreground mb-6">
-            Add initiatives one by one. Each initiative has a summary and description.
+            Add Roadmap items one by one. Each item has a summary and description.
           </p>
 
           <form onSubmit={handleAdd} className="space-y-4 mb-12">
@@ -310,7 +310,7 @@ const Configure = () => {
                 <Input
                   value={summary}
                   onChange={(e) => setSummary(e.target.value)}
-                  placeholder="Enter initiative summary"
+                  placeholder="Enter Roadmap summary"
                   className="border-border"
                 />
               </div>
@@ -335,7 +335,7 @@ const Configure = () => {
               <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter initiative description with details about problems and solutions"
+                placeholder="Enter Roadmap description with details about problems and solutions"
                 rows={16}
                 className="border-border min-h-[320px]"
               />
@@ -356,39 +356,39 @@ const Configure = () => {
               </Button>
               <Button type="submit" className="bg-[hsl(300,100%,71%)] hover:bg-[hsl(300,100%,65%)] text-foreground">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Initiative
+                Add Roadmap
               </Button>
             </div>
           </form>
 
-          {loadingInitiatives ? (
-            <p className="text-muted-foreground">Loading initiatives…</p>
-          ) : initiatives.length > 0 ? (
+          {loadingRoadmaps ? (
+            <p className="text-muted-foreground">Loading Roadmap…</p>
+          ) : roadmaps.length > 0 ? (
             <div>
-              <h2 className="text-lg font-medium mb-4">Your Initiatives ({initiatives.length})</h2>
+              <h2 className="text-lg font-medium mb-4">Your Roadmap ({roadmaps.length})</h2>
               <ul className="space-y-4">
-                {initiatives.map((init) => (
+                {roadmaps.map((item) => (
                   <li
-                    key={init.id}
+                    key={item.id}
                     className="border border-border rounded-lg p-4 bg-card flex flex-col gap-2"
                   >
                     <div className="flex justify-between items-start gap-4">
                       <div>
-                        <h3 className="font-medium">{init.summary}</h3>
-                        {init.product && (
-                          <p className="text-xs text-muted-foreground mt-0.5">{init.product}</p>
+                        <h3 className="font-medium">{item.summary}</h3>
+                        {item.product && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.product}</p>
                         )}
                       </div>
                       <button
-                        onClick={() => handleRemove(init.id)}
+                        onClick={() => handleRemove(item.id)}
                         className="text-muted-foreground hover:text-destructive shrink-0 p-1"
-                        aria-label="Remove initiative"
+                        aria-label="Remove Roadmap item"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    {init.description && (
-                      <p className="text-sm text-muted-foreground">{init.description}</p>
+                    {item.description && (
+                      <p className="text-sm text-muted-foreground">{item.description}</p>
                     )}
                   </li>
                 ))}
@@ -396,7 +396,7 @@ const Configure = () => {
             </div>
           ) : (
             <p className="text-muted-foreground">
-              No initiatives yet. Add your first one above. Initiatives are saved permanently to your account.
+              No Roadmap items yet. Add your first one above. Roadmap items are saved permanently to your account.
             </p>
           )}
         </div>

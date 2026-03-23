@@ -9,7 +9,7 @@ The NPS Analyzer is a client-side React application with optional backend servic
 │                        React SPA (Vite)                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐               │
 │  │   Discover  │  │   Results   │  │  Configure  │               │
-│  │  (Upload)    │──│  (Dashboard)│  │ (Initiatives)│               │
+│  │  (Upload)    │──│  (Dashboard)│  │ (Roadmap)│               │
 │  └─────────────┘  └─────────────┘  └─────────────┘               │
 │         │                  │                  │                   │
 │         ▼                  ▼                  ▼                   │
@@ -35,7 +35,7 @@ The NPS Analyzer is a client-side React application with optional backend servic
 | 2 | `analyzeNpsCsv()` | Parse CSV (PapaParse), classify scores, aggregate by account/role/state |
 | 3 | Session storage | Persist `NpsAnalysisResult` for Results page |
 | 4 | `Results` page | Render tables, map, charts; optionally run comment insights |
-| 5 | `generateCommentInsights()` | Call OpenAI to extract themes; match to initiatives |
+| 5 | `generateCommentInsights()` | Call OpenAI to extract themes; match to Roadmap |
 
 ### 2. NPS Analysis Engine (`src/lib/npsAnalysis.ts`)
 
@@ -47,21 +47,21 @@ The NPS Analyzer is a client-side React application with optional backend servic
 ### 3. Comment Insights (`src/lib/commentLabels.ts`)
 
 - Uses OpenAI to extract themes and issues from survey comments
-- Second pass: checks which configured initiatives would resolve each issue
+- Second pass: checks which configured Roadmap items would resolve each issue
 - Results shown as expandable insight cards on the Results page
 
 ### 4. Configure / Initiatives
 
 - **Storage:** Supabase `nps_initiatives` table (when authenticated) or session storage
 - **Products:** PowerSchool Applicant Tracking, Sourcing, Records, Smart Find Express
-- **AI:** Optional OpenAI integration to generate initiative descriptions from summaries
+- **AI:** Optional OpenAI integration to generate Roadmap descriptions from summaries
 
 ### 5. Persistence
 
 | Data | Storage | Scope |
 |------|---------|-------|
 | Analysis result | Session storage | Per tab, lost on close |
-| Initiatives | Supabase + session | Per user when logged in |
+| Roadmap | Supabase + session | Per user when logged in |
 | OpenAI API key | Session storage | Per session, not persisted |
 
 ## Technology Stack
@@ -81,7 +81,7 @@ The NPS Analyzer is a client-side React application with optional backend servic
 
 1. **Client-side analysis** — CSV parsing and NPS computation run in the browser. No server required for core workflow; fast and privacy-friendly.
 2. **Session storage for results** — Analysis is ephemeral. For long-term retention, a future enhancement could persist to Supabase.
-3. **Optional auth** — Configure works without login (session storage); login enables cloud-synced initiatives.
+3. **Optional auth** — Configure works without login (session storage); login enables cloud-synced Roadmap.
 4. **Flexible CSV schema** — Multiple column name variants supported to accommodate different survey tools.
 5. **Modular AI** — OpenAI is optional; core NPS analysis works without it.
 
@@ -99,7 +99,7 @@ src/
 ├── pages/
 │   ├── Discover.tsx        # Landing + upload
 │   ├── Results.tsx         # Dashboard
-│   └── Configure.tsx       # Initiatives management
+│   └── Configure.tsx       # Roadmap management
 └── integrations/supabase/ # Auth, DB client
 ```
 

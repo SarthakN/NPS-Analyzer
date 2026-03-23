@@ -1,12 +1,12 @@
 /**
  * AI-powered analysis of survey comments.
  * - Generate Insights: breaks down comments into issues, assigns themes using product context.
- * - Resolution check: after insights, determines which initiatives would resolve each issue.
+ * - Resolution check: after insights, determines which Roadmap items would resolve each issue.
  */
 
 import type { SurveyComment, InsightComment, CommentInsight } from './npsAnalysis';
 
-export interface Initiative {
+export interface Roadmap {
   id: string;
   summary: string;
   product: string;
@@ -16,14 +16,58 @@ export interface Initiative {
 const INSIGHTS_SYSTEM_PROMPT = `You are a product analyst. Your task is to analyze NPS survey comments.
 
 For each comment:
-1. Break it down into distinct issues or product areas mentioned (e.g. "slowness", "hard to find features", "poor support").
-2. Assign a theme to each issue using the product context. Themes are product-specific areas or features or strategic focus areas.
-3. Use concise, consistent theme names that fit the product domain.
+1. Break it down into distinct issues or product areas mentioned (e.g. "slow performance", "confusing navigation", "missing feature").
+2. Assign a product feature to each issue (e.g. Application manager, workflow, reference, etc.).
+3. Assign a theme to each issue using the predefined high-level themes below.
+4. Use the detailed guidance under each theme to determine the correct classification.
+5. Use concise, consistent theme names and normalized issue phrasing.
 
-Output ONLY a JSON array of objects. Each object has "issue" (short description of the issue) and "theme" (the assigned theme). Example:
-[{"issue": "slowness when loading", "theme": "Performance"}, {"issue": "hard to find where to navigate", "theme": "Navigation/UX"}].
+Output ONLY a JSON array of objects. Each object must have:
+- "issue": short, normalized description of the issue
+- "feature": product feature area (e.g. Application manager, Reference)
+- "theme": one of the predefined high-level themes below
 
-If the comment has no clear issues, output: []`;
+Example:
+[
+  {"issue": "slow performance", "feature": "Reference", "theme": "Performance & Stability"},
+  {"issue": "confusing navigation structure", "feature": "Application manager", "theme": "Product Experience"}
+]
+
+Write issues in a normalized, reusable format:
+- Use short noun phrases (not sentences)
+- Avoid synonyms when possible
+- Prefer standard terms (e.g., "slow performance" instead of "takes too long")
+- Avoid combining multiple issues into one
+
+Use ONLY the following themes (no new themes allowed):
+
+1. UI Experience (User Interface, Navigation & Information Architecture, Ease of Use / Usability)
+   
+2. Product Features (Features & Functionality)
+
+3. Performance (Speed, Reliability & Uptime)
+   
+4. Reporting & Analytics (dashboards, metrics, exports)
+
+5. Adoption & Enablement (Onboarding & Setup, Documentation & Learning Resources, In-product Guidance)
+
+6. Support & Service (Customer Support, Account Management / Success)
+   
+7. Commercial & Value (Pricing & Packaging, Perceived Value / ROI)
+
+8. Trust & Compliance (Security & Privacy, Compliance & Governance)
+   
+9. Integrations & APIs (External Systems, APIs)
+
+10. Bugs & Errors (defects, incorrect behavior)
+
+11. Other (only if nothing fits)
+
+Rules:
+- Assign ONLY the high-level theme (e.g., "UI Experience", NOT "User Interface")
+- Do not create new themes
+- Do not assign multiple themes to the same issue
+- If the comment has no clear issues, output: []`;
 
 export async function generateCommentInsights(
   comments: SurveyComment[],
@@ -48,7 +92,7 @@ export async function generateCommentInsights(
             { role: 'system', content: INSIGHTS_SYSTEM_PROMPT },
             {
               role: 'user',
-              content: `Product context: ${productContext}\n\nComment (score ${c.score}): "${c.comment}"\n\nIssues and themes (JSON array):`,
+              content: `Product context: ${productContext}\n\nComment (score ${c.score}): "${c.comment}"\n\nIssues, features, and themes (JSON array):`,
             },
           ],
           max_tokens: 300,
@@ -68,7 +112,11 @@ export async function generateCommentInsights(
         if (Array.isArray(parsed)) {
           themes = parsed
             .filter((x: unknown) => x && typeof x === 'object' && 'issue' in x && 'theme' in x)
-            .map((x: { issue: string; theme: string }) => ({ issue: String(x.issue), theme: String(x.theme) }));
+            .map((x: { issue: string; feature?: string; theme: string }) => ({
+              issue: String(x.issue),
+              feature: x.feature != null ? String(x.feature) : undefined,
+              theme: String(x.theme),
+            }));
         }
       } catch {
         // ignore parse errors
@@ -84,28 +132,28 @@ export async function generateCommentInsights(
   return results;
 }
 
-const RESOLUTION_SYSTEM_PROMPT = `You are a product analyst. Given an NPS comment issue and a list of product initiatives (each with summary and description), determine which initiatives would resolve or address that issue.
+const RESOLUTION_SYSTEM_PROMPT = `You are a product analyst. Given an NPS comment issue and a list of product Roadmap items (each with summary and description), determine which Roadmap items would resolve or address that issue.
 
-For each issue, output the EXACT initiative summary text for any initiative that would resolve it. Only include initiatives whose description clearly addresses the problem. Be conservative: if unsure, omit.
+For each issue, output the EXACT Roadmap summary text for any Roadmap item that would resolve it. Only include items whose description clearly addresses the problem. Be conservative: if unsure, omit.
 
-Output ONLY a JSON array of initiative summary strings. Use the exact summary text from the initiatives list. Example: ["Improve search and navigation"] or [] if none apply.`;
+Output ONLY a JSON array of Roadmap summary strings. Use the exact summary text from the Roadmap list. Example: ["Improve search and navigation"] or [] if none apply.`;
 
 /**
- * Maps AI-returned strings to canonical initiative summaries.
- * The AI may return the summary, the description, or a paraphrase—we normalize to the initiative's summary.
+ * Maps AI-returned strings to canonical Roadmap summaries.
+ * The AI may return the summary, the description, or a paraphrase—we normalize to the Roadmap item's summary.
  */
 function normalizeResolvedBy(
   raw: string[],
-  initiatives: Initiative[]
+  roadmaps: Roadmap[]
 ): string[] {
   const canonical = new Set<string>();
   for (const s of raw) {
     const lower = s.toLowerCase().trim();
     if (!lower) continue;
-    for (const init of initiatives) {
-      const summary = (init.summary ?? '').trim();
+    for (const item of roadmaps) {
+      const summary = (item.summary ?? '').trim();
       const summaryLower = summary.toLowerCase();
-      const desc = (init.description ?? '').trim();
+      const desc = (item.description ?? '').trim();
       const descLower = desc.toLowerCase();
       const matches =
         summaryLower === lower ||
@@ -113,7 +161,7 @@ function normalizeResolvedBy(
         descLower === lower ||
         (descLower && lower.length > 20 && (descLower.includes(lower) || lower.includes(descLower.slice(0, 80))));
       if (matches) {
-        canonical.add(summary || init.summary);
+        canonical.add(summary);
         break;
       }
     }
@@ -122,17 +170,17 @@ function normalizeResolvedBy(
 }
 
 /**
- * Second-pass analysis: after Generate Insights, check which initiatives would resolve each broken-down issue.
- * Runs automatically when initiatives exist.
+ * Second-pass analysis: after Generate Insights, check which Roadmap items would resolve each broken-down issue.
+ * Runs automatically when Roadmap items exist.
  */
-export async function checkInitiativeResolution(
+export async function checkRoadmapResolution(
   insightComments: InsightComment[],
-  initiatives: Initiative[],
+  roadmaps: Roadmap[],
   apiKey: string
 ): Promise<InsightComment[]> {
-  if (initiatives.length === 0) return insightComments;
+  if (roadmaps.length === 0) return insightComments;
 
-  const initiativeContext = initiatives
+  const roadmapContext = roadmaps
     .map((i) => `- "${i.summary}": ${(i.description ?? '').slice(0, 400)}`)
     .join('\n');
 
@@ -159,7 +207,7 @@ export async function checkInitiativeResolution(
                 { role: 'system', content: RESOLUTION_SYSTEM_PROMPT },
                 {
                   role: 'user',
-                  content: `Initiatives:\n${initiativeContext}\n\nComment: "${c.comment}"\n\nIssue: "${t.issue}" (theme: ${t.theme})\n\nWhich initiative summaries would resolve this issue? (JSON array):`,
+                  content: `Roadmap:\n${roadmapContext}\n\nComment: "${c.comment}"\n\nIssue: "${t.issue}"${t.feature ? ` (feature: ${t.feature})` : ''} (theme: ${t.theme})\n\nWhich Roadmap summaries would resolve this issue? (JSON array):`,
                 },
               ],
               max_tokens: 150,
@@ -174,7 +222,7 @@ export async function checkInitiativeResolution(
               const raw = Array.isArray(parsed)
                 ? parsed.filter((s: unknown) => typeof s === 'string').map((s: string) => String(s).trim()).filter(Boolean)
                 : [];
-              resolvedBy = normalizeResolvedBy(raw, initiatives);
+              resolvedBy = normalizeResolvedBy(raw, roadmaps);
             } catch {
               // ignore
             }

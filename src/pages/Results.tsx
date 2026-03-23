@@ -14,15 +14,17 @@ import { Input } from '@/components/ui/input';
 import { NpsScoreCell } from '@/components/NpsScoreCell';
 import { NpsStateMap } from '@/components/NpsStateMap';
 import { Sparkles, ChevronUp, ChevronDown, Map as MapIcon, List, Loader2, MessageSquare } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { toast } from 'sonner';
 import type { NpsAnalysisResult, NpsRow, InsightComment } from '@/lib/npsAnalysis';
-import { generateCommentInsights, checkInitiativeResolution } from '@/lib/commentLabels';
+import { generateCommentInsights, checkRoadmapResolution } from '@/lib/commentLabels';
 import { saveInsightComments } from '@/lib/runEvals';
 import { supabase } from '@/integrations/supabase/client';
 
 const PAGE_SIZE = 10;
 const NPS_RESULT_KEY = 'nps:analysisResult';
-const INITIATIVES_KEY = 'nps-initiatives';
+const ROADMAPS_KEY = 'nps-roadmaps';
 const OPENAI_KEY_STORAGE = 'nps:openaiKey';
 
 function loadResult(stateResult: NpsAnalysisResult | undefined): NpsAnalysisResult | undefined {
@@ -173,8 +175,8 @@ const Results = () => {
   const [insightComments, setInsightComments] = useState<InsightComment[] | null>(null);
   const [insightsInProgress, setInsightsInProgress] = useState(false);
   const [commentThemeFilter, setCommentThemeFilter] = useState<string>('__all__');
-  const [commentInitiativeFilter, setCommentInitiativeFilter] = useState<string>('__all__');
-  const [commentViewMode, setCommentViewMode] = useState<'theme' | 'comments' | 'initiatives'>('comments');
+  const [commentRoadmapFilter, setCommentRoadmapFilter] = useState<string>('__all__');
+  const [commentViewMode, setCommentViewMode] = useState<'theme' | 'comments' | 'roadmap'>('comments');
 
   const filteredOverallNps = useMemo(() => {
     if (!result || districtFilter === '__all__') return result?.overallNps ?? null;
@@ -219,13 +221,13 @@ const Results = () => {
     if (commentThemeFilter !== '__all__') {
       out = out.filter((c) => c.themes?.some((t) => t.theme === commentThemeFilter));
     }
-    if (commentViewMode === 'initiatives' && commentInitiativeFilter !== '__all__') {
+    if (commentViewMode === 'roadmap' && commentRoadmapFilter !== '__all__') {
       out = out.filter((c) =>
-        c.themes?.some((t) => t.resolvedBy?.includes(commentInitiativeFilter))
+        c.themes?.some((t) => t.resolvedBy?.includes(commentRoadmapFilter))
       );
     }
     return out;
-  }, [commentsToShow, commentThemeFilter, commentViewMode, commentInitiativeFilter]);
+  }, [commentsToShow, commentThemeFilter, commentViewMode, commentRoadmapFilter]);
 
   const commentsByTheme = useMemo(() => {
     const byTheme: Record<string, InsightComment[]> = {};
@@ -244,7 +246,7 @@ const Results = () => {
     return byTheme;
   }, [filteredComments]);
 
-  const allInitiatives = useMemo(() => {
+  const allRoadmaps = useMemo(() => {
     const set = new Set<string>();
     commentsToShow.forEach((c) =>
       c.themes?.forEach((t) => t.resolvedBy?.forEach((init) => set.add(init)))
@@ -252,25 +254,37 @@ const Results = () => {
     return Array.from(set).sort();
   }, [commentsToShow]);
 
-  const commentsByInitiative = useMemo(() => {
-    const byInitiative: Record<string, InsightComment[]> = {};
+  const commentsByRoadmap = useMemo(() => {
+    const byRoadmap: Record<string, InsightComment[]> = {};
     const unresolved: InsightComment[] = [];
     for (const c of filteredComments) {
       let hasResolution = false;
       if (c.themes?.length) {
         for (const t of c.themes) {
-          for (const init of t.resolvedBy ?? []) {
+          for (const item of t.resolvedBy ?? []) {
             hasResolution = true;
-            if (!byInitiative[init]) byInitiative[init] = [];
-            if (!byInitiative[init].includes(c)) byInitiative[init].push(c);
+            if (!byRoadmap[item]) byRoadmap[item] = [];
+            if (!byRoadmap[item].includes(c)) byRoadmap[item].push(c);
           }
         }
       }
       if (!hasResolution) unresolved.push(c);
     }
-    if (unresolved.length) byInitiative['Unresolved'] = unresolved;
-    return byInitiative;
+    if (unresolved.length) byRoadmap['Unresolved'] = unresolved;
+    return byRoadmap;
   }, [filteredComments]);
+
+  const themeChartData = useMemo(() => {
+    return Object.entries(commentsByTheme)
+      .sort(([a], [b]) => (a === 'Other' ? 1 : b === 'Other' ? -1 : a.localeCompare(b)))
+      .map(([name, comments]) => ({ name: name.length > 30 ? name.slice(0, 30) + '…' : name, count: comments.length, fullName: name }));
+  }, [commentsByTheme]);
+
+  const roadmapChartData = useMemo(() => {
+    return Object.entries(commentsByRoadmap)
+      .sort(([a], [b]) => (a === 'Unresolved' ? 1 : b === 'Unresolved' ? -1 : a.localeCompare(b)))
+      .map(([name, comments]) => ({ name: name.length > 30 ? name.slice(0, 30) + '…' : name, count: comments.length, fullName: name }));
+  }, [commentsByRoadmap]);
 
   const handleGenerateInsights = async () => {
     const comments = result?.surveyComments ?? [];
@@ -279,7 +293,7 @@ const Results = () => {
       return;
     }
     let productContext = 'PowerSchool Applicant Tracking';
-    let initiatives: { id: string; summary: string; product: string; description: string }[] = [];
+    let roadmaps: { id: string; summary: string; product: string; description: string }[] = [];
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user?.id) {
       const { data } = await supabase
@@ -288,15 +302,15 @@ const Results = () => {
         .eq('user_id', session.user.id)
         .order('created_at', { ascending: true });
       if (data?.length) {
-        initiatives = data;
+        roadmaps = data;
       }
     }
-    if (initiatives.length === 0) {
+    if (roadmaps.length === 0) {
       try {
-        const stored = sessionStorage.getItem(INITIATIVES_KEY);
+        const stored = sessionStorage.getItem(ROADMAPS_KEY) ?? sessionStorage.getItem('nps-initiatives');
         if (stored) {
           const parsed = JSON.parse(stored) as { id: string; title?: string; summary?: string; product: string; description: string }[];
-          initiatives = parsed.map((i) => ({
+          roadmaps = parsed.map((i) => ({
             ...i,
             summary: i.summary ?? i.title ?? '',
           }));
@@ -305,8 +319,8 @@ const Results = () => {
         // ignore
       }
     }
-    if (initiatives.length > 0) {
-      const products = [...new Set(initiatives.map((i) => i.product).filter(Boolean))];
+    if (roadmaps.length > 0) {
+      const products = [...new Set(roadmaps.map((i) => i.product).filter(Boolean))];
       productContext = products.length > 0 ? products.join(', ') : productContext;
     }
     const apiKey = sessionStorage.getItem(OPENAI_KEY_STORAGE);
@@ -321,16 +335,16 @@ const Results = () => {
       saveInsightComments(insights);
       toast.success(`Generated insights for ${insights.length} comments`);
 
-      if (initiatives.length > 0) {
-        toast.info('Checking which initiatives resolve these issues…');
-        const withResolution = await checkInitiativeResolution(insights, initiatives, apiKey.trim());
+      if (roadmaps.length > 0) {
+        toast.info('Checking which Roadmap items resolve these issues…');
+        const withResolution = await checkRoadmapResolution(insights, roadmaps, apiKey.trim());
         setInsightComments(withResolution);
         saveInsightComments(withResolution);
         const resolvedCount = withResolution.reduce(
           (sum, c) => sum + (c.themes?.filter((t) => t.resolvedBy?.length).length ?? 0),
           0
         );
-        toast.success(`Resolution check complete. ${resolvedCount} issue(s) matched to initiatives.`);
+        toast.success(`Resolution check complete. ${resolvedCount} issue(s) matched to Roadmap.`);
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to generate insights');
@@ -516,15 +530,15 @@ const Results = () => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setCommentViewMode('initiatives')}
-                        className={`px-3 py-1.5 text-sm ${commentViewMode === 'initiatives' ? 'bg-accent font-medium' : 'bg-background hover:bg-muted/50'}`}
+                        onClick={() => setCommentViewMode('roadmap')}
+                        className={`px-3 py-1.5 text-sm ${commentViewMode === 'roadmap' ? 'bg-accent font-medium' : 'bg-background hover:bg-muted/50'}`}
                       >
-                        View by initiatives
+                        View by Roadmap
                       </button>
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    {insightComments && commentViewMode !== 'initiatives' && (
+                    {insightComments && commentViewMode !== 'roadmap' && (
                       <>
                         <label className="text-sm text-muted-foreground">Filter by theme:</label>
                         <Select value={commentThemeFilter} onValueChange={setCommentThemeFilter}>
@@ -542,18 +556,18 @@ const Results = () => {
                         </Select>
                       </>
                     )}
-                    {insightComments && commentViewMode === 'initiatives' && (
+                    {insightComments && commentViewMode === 'roadmap' && (
                       <>
-                        <label className="text-sm text-muted-foreground">Filter by initiative:</label>
-                        <Select value={commentInitiativeFilter} onValueChange={setCommentInitiativeFilter}>
+                        <label className="text-sm text-muted-foreground">Filter by Roadmap:</label>
+                        <Select value={commentRoadmapFilter} onValueChange={setCommentRoadmapFilter}>
                           <SelectTrigger className="w-[220px]">
-                            <SelectValue placeholder="All initiatives" />
+                            <SelectValue placeholder="All Roadmap" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__all__">All</SelectItem>
-                            {allInitiatives.map((init) => (
-                              <SelectItem key={init} value={init}>
-                                {init.length > 45 ? init.slice(0, 45) + '…' : init}
+                            {allRoadmaps.map((item) => (
+                              <SelectItem key={item} value={item}>
+                                {item.length > 45 ? item.slice(0, 45) + '…' : item}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -567,7 +581,7 @@ const Results = () => {
                         onClick={() => {
                           setInsightComments(null);
                           setCommentViewMode('comments' as const);
-                        setCommentInitiativeFilter('__all__');
+                        setCommentRoadmapFilter('__all__');
                         }}
                       title="Clear insights from comments only. Does not affect Configure."
                     >
@@ -592,6 +606,44 @@ const Results = () => {
                 </div>
               )}
             </div>
+            {insightComments &&
+              (commentViewMode === 'theme' || commentViewMode === 'roadmap') &&
+              (commentViewMode === 'theme' ? themeChartData : roadmapChartData).length > 0 && (
+                <div className="mb-4">
+                  <ChartContainer
+                    config={{
+                      count: { label: 'Comments', color: 'hsl(var(--primary))' },
+                    }}
+                    className="h-[240px] w-full"
+                  >
+                    <BarChart
+                      data={commentViewMode === 'theme' ? themeChartData : roadmapChartData}
+                      layout="vertical"
+                      margin={{ left: 8, right: 8, top: 8, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" tickLine={false} axisLine={false} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={120}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={{ fontSize: 11 }}
+                      />
+                      <ChartTooltip
+                        content={
+                          <ChartTooltipContent
+                            formatter={(value) => [value, 'Comments']}
+                            labelFormatter={(_, payload) => payload?.[0]?.payload?.fullName ?? ''}
+                          />
+                        }
+                      />
+                      <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </div>
+              )}
             <div className="space-y-3 max-h-[480px] overflow-y-auto">
               {(result.surveyComments?.length ?? 0) === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">
@@ -599,26 +651,26 @@ const Results = () => {
                 </p>
               ) : filteredComments.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4">
-                  {commentThemeFilter === '__all__' && commentInitiativeFilter === '__all__'
+                  {commentThemeFilter === '__all__' && commentRoadmapFilter === '__all__'
                     ? 'No comments.'
-                    : commentViewMode === 'initiatives'
-                    ? 'No comments match this initiative.'
+                    : commentViewMode === 'roadmap'
+                    ? 'No comments match this Roadmap item.'
                     : 'No comments match this theme.'}
                 </p>
-              ) : insightComments && commentViewMode === 'initiatives' ? (
-                Object.entries(commentsByInitiative)
+              ) : insightComments && commentViewMode === 'roadmap' ? (
+                Object.entries(commentsByRoadmap)
                   .sort(([a], [b]) => (a === 'Unresolved' ? 1 : b === 'Unresolved' ? -1 : a.localeCompare(b)))
-                  .map(([initiative, comments]) => (
-                    <div key={initiative} className="space-y-2">
+                  .map(([roadmapItem, comments]) => (
+                    <div key={roadmapItem} className="space-y-2">
                       <h3 className="text-sm font-semibold text-foreground sticky top-0 bg-background py-2 border-b border-border flex items-center gap-2">
                         <span
                           className={`px-2 py-0.5 rounded text-xs ${
-                            initiative === 'Unresolved'
+                            roadmapItem === 'Unresolved'
                               ? 'bg-muted text-muted-foreground'
                               : 'bg-violet-500/20 text-violet-700 dark:bg-violet-500/30 dark:text-violet-300 border border-violet-500/40'
                           }`}
                         >
-                          {initiative}
+                          {roadmapItem}
                         </span>
                         ({comments.length})
                       </h3>
@@ -645,15 +697,19 @@ const Results = () => {
                               >
                                 {c.sentiment === 'positive' ? 'Positive' : c.sentiment === 'negative' ? 'Negative' : 'Neutral'} (score {c.score})
                               </span>
-                              {(c.themes?.filter((t) => t.resolvedBy?.includes(initiative)) ?? []).map((t, i) => (
-                                <span
-                                  key={i}
-                                  className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary"
-                                  title={`${t.theme}: ${t.issue}`}
-                                >
-                                  {t.issue.length > 40 ? t.issue.slice(0, 40) + '…' : t.issue}
-                                </span>
-                              ))}
+                              {(c.themes?.filter((t) => t.resolvedBy?.includes(roadmapItem)) ?? []).map((t, i) => {
+                                const parts = [t.feature, t.issue].filter(Boolean);
+                                const full = parts.join(' — ');
+                                return (
+                                  <span
+                                    key={i}
+                                    className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary"
+                                    title={parts.join(' · ')}
+                                  >
+                                    {full.length > 50 ? full.slice(0, 50) + '…' : full}
+                                  </span>
+                                );
+                              })}
                             </div>
                             <p className="text-foreground">{c.comment}</p>
                           </div>
@@ -692,13 +748,16 @@ const Results = () => {
                               >
                                 {c.sentiment === 'positive' ? 'Positive' : c.sentiment === 'negative' ? 'Negative' : 'Neutral'} (score {c.score})
                               </span>
-                              {(c.themes?.filter((t) => t.theme === theme) ?? []).map((t, i) => (
+                              {(c.themes?.filter((t) => t.theme === theme) ?? []).map((t, i) => {
+                                const parts = [t.feature, t.issue].filter(Boolean);
+                                const full = parts.join(' — ');
+                                return (
                                 <span key={i} className="flex flex-wrap items-center gap-1">
                                   <span
                                     className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary"
-                                    title={`${t.theme}: ${t.issue}`}
+                                    title={parts.join(' · ')}
                                   >
-                                    {t.issue.length > 40 ? t.issue.slice(0, 40) + '…' : t.issue}
+                                    {full.length > 50 ? full.slice(0, 50) + '…' : full}
                                   </span>
                                   {t.resolvedBy?.map((init, j) => (
                                     <span
@@ -710,7 +769,8 @@ const Results = () => {
                                     </span>
                                   ))}
                                 </span>
-                              ))}
+                                );
+                              })}
                             </div>
                             <p className="text-foreground">{c.comment}</p>
                           </div>
@@ -743,13 +803,16 @@ const Results = () => {
                         </span>
                         {c.themes?.length > 0 && (
                           <div className="flex flex-wrap gap-1">
-                            {c.themes.map((t, i) => (
+                            {c.themes.map((t, i) => {
+                              const parts = [t.feature, t.issue].filter(Boolean);
+                              const full = parts.join(' — ');
+                              return (
                               <span key={i} className="flex flex-wrap items-center gap-1">
                                 <span
                                   className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary"
-                                  title={`${t.theme}: ${t.issue}`}
+                                  title={parts.join(' · ')}
                                 >
-                                  {t.theme} — {t.issue.length > 40 ? t.issue.slice(0, 40) + '…' : t.issue}
+                                  {full.length > 50 ? full.slice(0, 50) + '…' : full}
                                 </span>
                                 {t.resolvedBy?.map((init, j) => (
                                   <span
@@ -761,7 +824,8 @@ const Results = () => {
                                   </span>
                                 ))}
                               </span>
-                            ))}
+                              );
+                            })}
                           </div>
                         )}
                       </div>
